@@ -614,6 +614,10 @@ section {
   align-self: center;
 }
 
+.contact__actions {
+  margin-top: 22px;
+}
+
 .contact-card {
   padding: 24px;
   border-radius: 26px;
