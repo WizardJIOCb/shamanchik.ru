@@ -323,24 +323,13 @@ main,
   isolation: isolate;
 }
 
-.ritual-button::before,
-.ritual-button::after {
+.ritual-button::before {
   content: "";
   position: absolute;
   inset: 5px;
   border: 1px solid rgba(255, 225, 174, 0.22);
   border-radius: 8px;
   pointer-events: none;
-}
-
-.ritual-button::after {
-  inset: auto;
-  width: 16px;
-  height: 16px;
-  border: none;
-  background:
-    linear-gradient(135deg, transparent 48%, rgba(255, 225, 174, 0.8) 49%, rgba(255, 225, 174, 0.8) 51%, transparent 52%);
-  opacity: 0.75;
 }
 
 .ritual-button--gold {
@@ -366,18 +355,6 @@ main,
 
 .ritual-button:active {
   transform: translateY(1px);
-}
-
-.ritual-button--gold::after {
-  top: calc(50% - 8px);
-  left: 12px;
-  box-shadow: 144px 0 0 rgba(255, 225, 174, 0.8);
-}
-
-.ritual-button--dark::after {
-  top: calc(50% - 8px);
-  left: 12px;
-  box-shadow: 144px 0 0 rgba(215, 174, 126, 0.78);
 }
 
 main {
@@ -769,11 +746,6 @@ section {
     width: min(100%, 280px);
     min-width: 0;
     font-size: 1.9rem;
-  }
-
-  .ritual-button--gold::after,
-  .ritual-button--dark::after {
-    box-shadow: calc(100% - 40px) 0 0 rgba(255, 225, 174, 0.8);
   }
 
   .panel,
