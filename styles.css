@@ -487,6 +487,16 @@ section {
   padding: 24px;
   border-radius: 26px;
   overflow: hidden;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.product-card:hover,
+.product-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(239, 195, 106, 0.38);
+  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.3);
+  outline: none;
 }
 
 .product-card--accent {
