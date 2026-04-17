@@ -1,5 +1,5 @@
 const revealItems = document.querySelectorAll(".reveal");
-const whatsappPhone = "79264769929";
+const whatsappPhone = "79871355371";
 
 const revealObserver = new IntersectionObserver((entries) => {
   entries.forEach((entry) => {
