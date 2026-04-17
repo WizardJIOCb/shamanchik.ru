@@ -12,6 +12,7 @@
   --shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
   --radius: 28px;
   --content: 1180px;
+  --hero-width: 1536px;
 }
 
 * {
@@ -38,7 +39,7 @@ body::before {
   inset: 0;
   background:
     linear-gradient(180deg, rgba(4, 8, 8, 0.18), rgba(4, 8, 8, 0.58)),
-    url("images/background.png") center top / cover no-repeat;
+    url("images/background.jpg") center top / cover no-repeat;
   filter: blur(8px) saturate(0.6) brightness(0.24);
   transform: scale(1.05);
   z-index: -2;
@@ -70,7 +71,11 @@ img {
   overflow: clip;
 }
 
-.hero,
+.hero {
+  width: min(calc(100% - 32px), var(--hero-width));
+  margin: 0 auto;
+}
+
 main,
 .footer {
   width: min(calc(100% - 32px), var(--content));
@@ -79,7 +84,9 @@ main,
 
 .hero {
   position: relative;
-  min-height: 100svh;
+  min-height: 0;
+  aspect-ratio: 3 / 2;
+  max-height: 100svh;
   padding: 24px 0 80px;
   display: grid;
   grid-template-rows: auto 1fr;
@@ -92,8 +99,8 @@ main,
   inset: 0;
   border-radius: 0 0 34px 34px;
   background:
-    linear-gradient(180deg, rgba(6, 12, 13, 0.35) 0%, rgba(6, 8, 7, 0.48) 46%, rgba(6, 8, 7, 0.82) 100%),
-    url("images/main-block-reference.png") center center / cover no-repeat;
+    linear-gradient(180deg, rgba(6, 12, 13, 0.18) 0%, rgba(6, 8, 7, 0.28) 42%, rgba(6, 8, 7, 0.8) 100%),
+    url("images/background.jpg") center center / cover no-repeat;
   box-shadow: var(--shadow);
   z-index: -1;
 }
@@ -722,12 +729,14 @@ section {
   }
 
   .hero {
+    width: min(calc(100% - 20px), var(--hero-width));
     min-height: auto;
+    aspect-ratio: auto;
     padding-top: 14px;
   }
 
   .hero::before {
-    background-position: 55% center;
+    background-position: 58% center;
   }
 
   .topbar {
