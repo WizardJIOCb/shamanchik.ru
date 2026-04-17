@@ -719,11 +719,18 @@ section {
   .hero {
     width: 100%;
     min-height: auto;
+    display: block;
     padding-top: 14px;
+    padding-bottom: 32px;
   }
 
   .hero::before {
     background-position: 58% center;
+  }
+
+  .hero__mist,
+  .hero__glow {
+    display: none;
   }
 
   .topbar {
@@ -740,9 +747,10 @@ section {
   }
 
   .hero__inner {
+    width: 100%;
     padding-top: 44px;
     padding-bottom: 56px;
-    margin: 0 auto;
+    margin: 0;
   }
 
   .hero__lead {
