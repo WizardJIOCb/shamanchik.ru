@@ -84,7 +84,6 @@ main,
 .hero {
   position: relative;
   min-height: 0;
-  max-height: 100svh;
   padding: 24px 0 80px;
   display: grid;
   grid-template-rows: auto 1fr;
@@ -742,7 +741,8 @@ section {
 
   .hero__inner {
     padding-top: 44px;
-    padding-bottom: 40px;
+    padding-bottom: 56px;
+    margin: 0 auto;
   }
 
   .hero__lead {
