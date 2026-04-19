@@ -415,8 +415,28 @@ textarea:focus {
 }
 
 .message-card__author {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--gold-bright);
   font-weight: 700;
+  cursor: pointer;
+  transition: color 0.18s ease, text-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.message-card__author:hover {
+  color: #ffe2a9;
+  text-shadow: 0 0 14px rgba(214, 176, 109, 0.2);
+  transform: translateY(-1px);
+}
+
+.message-card__author:focus-visible {
+  outline: 1px solid rgba(241, 207, 135, 0.45);
+  outline-offset: 4px;
+  border-radius: 10px;
 }
 
 .ghost-button--small {

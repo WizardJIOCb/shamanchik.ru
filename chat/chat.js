@@ -219,7 +219,9 @@ function renderMessages() {
     return `
       <article class="message-card">
         <div class="message-card__meta">
-          <strong class="message-card__author">${escapeHtml(message.displayName)}</strong>
+          <button type="button" class="message-card__author" data-author-id="${message.userId}">
+            ${escapeHtml(message.displayName)}
+          </button>
           <div class="message-card__actions">
             <span>${formatDate(message.createdAt)}</span>
             ${actions}
@@ -233,6 +235,10 @@ function renderMessages() {
 
   dom.messagesList.querySelectorAll("[data-message-id]").forEach((button) => {
     button.addEventListener("click", () => handleDeleteMessage(Number(button.dataset.messageId)));
+  });
+
+  dom.messagesList.querySelectorAll("[data-author-id]").forEach((button) => {
+    button.addEventListener("click", () => openProfile(Number(button.dataset.authorId)));
   });
 
   dom.messagesList.querySelectorAll(".message-attachment img").forEach((image) => {
