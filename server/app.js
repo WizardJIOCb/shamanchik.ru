@@ -16,7 +16,7 @@ const UPLOAD_DIR = process.env.CHAT_UPLOAD_DIR || path.join(STORAGE_DIR, "upload
 const PORT = Number(process.env.PORT || 3210);
 const SESSION_COOKIE = "shamanchik_chat_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 fs.mkdirSync(STORAGE_DIR, { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -846,7 +846,7 @@ app.patch("/chat-api/me/profile", requireAuth, (req, res) => {
 
 app.use((err, _req, res, _next) => {
   if (err?.code === "LIMIT_FILE_SIZE") {
-    return res.status(413).json({ error: "Файл слишком большой. Лимит 10 МБ." });
+    return res.status(413).json({ error: "Файл слишком большой. Лимит 5 МБ." });
   }
   console.error(err);
   return res.status(500).json({ error: "Внутренняя ошибка сервера." });
