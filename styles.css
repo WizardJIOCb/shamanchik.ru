@@ -18,6 +18,11 @@
   box-sizing: border-box;
 }
 
+::selection {
+  color: #130f07;
+  background: rgba(241, 207, 135, 0.78);
+}
+
 html {
   scroll-behavior: smooth;
   scrollbar-width: thin;
@@ -70,6 +75,11 @@ html::-webkit-scrollbar-corner,
 body::-webkit-scrollbar-corner,
 textarea::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+textarea,
+input {
+  caret-color: var(--gold);
 }
 
 body::before {

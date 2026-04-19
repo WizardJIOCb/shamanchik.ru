@@ -15,6 +15,11 @@
   box-sizing: border-box;
 }
 
+::selection {
+  color: #130f07;
+  background: rgba(241, 207, 135, 0.8);
+}
+
 html,
 body {
   height: 100%;
@@ -229,8 +234,10 @@ textarea {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--ink);
+  caret-color: var(--gold-bright);
   padding: 14px 16px;
   resize: vertical;
+  scrollbar-gutter: stable;
 }
 
 input:focus,
