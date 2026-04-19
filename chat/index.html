@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Чат Лавки Шамана</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/chat-assets/chat.css">
+</head>
+<body>
+  <div class="chat-page">
+    <aside class="chat-sidebar">
+      <div class="chat-brand">
+        <a href="/" class="chat-brand__home">Лавка Шамана</a>
+        <p>Внутренний чат лавки</p>
+      </div>
+
+      <section class="panel panel--muted auth-panel" id="auth-panel">
+        <div class="auth-panel__tabs">
+          <button type="button" class="tab is-active" data-auth-tab="register">Регистрация</button>
+          <button type="button" class="tab" data-auth-tab="login">Вход</button>
+        </div>
+
+        <form id="register-form" class="auth-form">
+          <label>
+            <span>Логин</span>
+            <input name="username" minlength="3" maxlength="24" autocomplete="username" required>
+          </label>
+          <label>
+            <span>Имя в чате</span>
+            <input name="displayName" maxlength="48" required>
+          </label>
+          <label>
+            <span>Пароль</span>
+            <input type="password" name="password" minlength="6" autocomplete="new-password" required>
+          </label>
+          <button class="ritual-button ritual-button--gold wide" type="submit">Создать аккаунт</button>
+        </form>
+
+        <form id="login-form" class="auth-form is-hidden">
+          <label>
+            <span>Логин</span>
+            <input name="username" minlength="3" maxlength="24" autocomplete="username" required>
+          </label>
+          <label>
+            <span>Пароль</span>
+            <input type="password" name="password" minlength="6" autocomplete="current-password" required>
+          </label>
+          <button class="ritual-button ritual-button--dark wide" type="submit">Войти</button>
+        </form>
+
+        <p class="status-line" id="auth-status">Для входа в чат нужен аккаунт. Новым пользователям сразу открывается регистрация.</p>
+      </section>
+
+      <section class="panel panel--muted profile-card is-hidden" id="self-profile-card">
+        <div class="profile-card__head">
+          <div>
+            <strong id="self-display-name">Гость</strong>
+            <p id="self-username">@guest</p>
+          </div>
+          <button type="button" class="ghost-button" id="logout-button">Выйти</button>
+        </div>
+        <button type="button" class="ritual-button ritual-button--dark wide" id="edit-profile-button">Редактировать профиль</button>
+      </section>
+
+      <section class="panel search-panel is-hidden" id="channel-panel">
+        <div class="section-title">
+          <h2>Каналы и чаты</h2>
+          <button type="button" class="ghost-button" id="create-channel-button">+ Канал</button>
+        </div>
+        <label class="search-box">
+          <input id="channel-search" type="search" placeholder="Поиск по каналам, описаниям и авторам">
+        </label>
+        <div id="channel-list" class="channel-list"></div>
+      </section>
+    </aside>
+
+    <main class="chat-main">
+      <header class="chat-header">
+        <div>
+          <p class="chat-header__eyebrow">Мессенджер лавки</p>
+          <h1 id="channel-title">Выберите канал</h1>
+          <p id="channel-description">После входа откроется список каналов, личная комната и поиск по общему каталогу обсуждений.</p>
+        </div>
+        <div class="chat-header__stats" id="channel-stats">
+          <div class="stat-box"><span>Online</span><strong id="stat-online">0</strong></div>
+          <div class="stat-box"><span>Были в канале</span><strong id="stat-visitors">0</strong></div>
+          <div class="stat-box"><span>DAU / WAU / MAU</span><strong id="stat-dau">0 / 0 / 0</strong></div>
+        </div>
+      </header>
+
+      <section class="chat-layout">
+        <div class="messages-panel panel">
+          <div class="messages-list" id="messages-list">
+            <div class="empty-state">
+              <h2>Чат ждёт подключения</h2>
+              <p>Здесь будут сообщения, файлы, картинки и живое общение по товарам, доставке и вашему каналу.</p>
+            </div>
+          </div>
+
+          <form id="message-form" class="message-form is-hidden">
+            <label class="file-picker">
+              <input id="message-file" type="file" name="file">
+              <span>Файл или картинка</span>
+            </label>
+
+            <div class="composer">
+              <div class="composer__tools">
+                <button type="button" class="ghost-button" id="emoji-button">😀 Смайлы</button>
+                <span id="file-name" class="file-name">Файл не выбран</span>
+              </div>
+              <div class="emoji-tray is-hidden" id="emoji-tray">
+                <button type="button">🌿</button>
+                <button type="button">🍄</button>
+                <button type="button">🔥</button>
+                <button type="button">✨</button>
+                <button type="button">🕯️</button>
+                <button type="button">🌙</button>
+                <button type="button">💬</button>
+                <button type="button">🤝</button>
+              </div>
+              <textarea id="message-content" name="content" rows="3" maxlength="5000" placeholder="Напишите сообщение, вставьте смайлы или приложите картинку..."></textarea>
+            </div>
+
+            <button type="submit" class="ritual-button ritual-button--gold">Отправить</button>
+          </form>
+        </div>
+
+        <aside class="members-panel panel">
+          <div class="section-title">
+            <h2>Пользователи канала</h2>
+            <span id="members-count">0 участников</span>
+          </div>
+          <div id="members-list" class="members-list"></div>
+
+          <div class="panel panel--muted channel-editor is-hidden" id="channel-editor">
+            <h3>Настройки канала</h3>
+            <form id="channel-edit-form">
+              <label>
+                <span>Название</span>
+                <input id="channel-edit-name" name="name" maxlength="80" required>
+              </label>
+              <label>
+                <span>Описание</span>
+                <textarea id="channel-edit-description" name="description" rows="3" maxlength="280"></textarea>
+              </label>
+              <button class="ritual-button ritual-button--dark wide" type="submit">Сохранить</button>
+            </form>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="profile-dialog" class="dialog-card">
+    <div class="dialog-card__header">
+      <h2>Профиль</h2>
+      <button type="button" class="ghost-button" data-close-dialog>Закрыть</button>
+    </div>
+    <div id="profile-dialog-body" class="profile-dialog__body"></div>
+  </dialog>
+
+  <dialog id="create-channel-dialog" class="dialog-card">
+    <div class="dialog-card__header">
+      <h2>Новый канал</h2>
+      <button type="button" class="ghost-button" data-close-dialog>Закрыть</button>
+    </div>
+    <form id="create-channel-form" class="stack-form">
+      <label>
+        <span>Название</span>
+        <input name="name" maxlength="80" required>
+      </label>
+      <label>
+        <span>Описание</span>
+        <textarea name="description" rows="4" maxlength="280"></textarea>
+      </label>
+      <button type="submit" class="ritual-button ritual-button--gold wide">Создать канал</button>
+    </form>
+  </dialog>
+
+  <dialog id="edit-profile-dialog" class="dialog-card">
+    <div class="dialog-card__header">
+      <h2>Мой профиль</h2>
+      <button type="button" class="ghost-button" data-close-dialog>Закрыть</button>
+    </div>
+    <form id="edit-profile-form" class="stack-form">
+      <label>
+        <span>Имя в чате</span>
+        <input name="displayName" maxlength="48" required>
+      </label>
+      <label>
+        <span>О себе</span>
+        <textarea name="bio" rows="4" maxlength="280"></textarea>
+      </label>
+      <label>
+        <span>Город / заметка</span>
+        <input name="location" maxlength="80">
+      </label>
+      <button type="submit" class="ritual-button ritual-button--gold wide">Сохранить профиль</button>
+    </form>
+  </dialog>
+
+  <script src="/chat-assets/chat.js"></script>
+</body>
+</html>

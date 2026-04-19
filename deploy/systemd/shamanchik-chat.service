@@ -1,0 +1,18 @@
+[Unit]
+Description=Shamanchik chat service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/shamanchik.ru
+Environment=PORT=3210
+Environment=CHAT_DB_PATH=/var/www/shamanchik.ru/storage/chat.sqlite
+Environment=CHAT_UPLOAD_DIR=/var/www/shamanchik.ru/storage/uploads
+ExecStart=/usr/bin/node server/app.js
+Restart=always
+RestartSec=3
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target
