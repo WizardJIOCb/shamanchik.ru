@@ -37,6 +37,10 @@ body {
   overflow: hidden;
 }
 
+.admin-body {
+  overflow: auto;
+}
+
 button,
 input,
 textarea {
@@ -486,6 +490,10 @@ textarea:focus {
   display: grid;
   gap: 20px;
   min-height: 100vh;
+}
+
+.admin-body .admin-scroll {
+  max-height: none;
 }
 
 .admin-header {
