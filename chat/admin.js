@@ -1,4 +1,4 @@
-﻿const adminDom = {
+const adminDom = {
   refreshButton: document.getElementById("refresh-admin-button"),
   statUsers: document.getElementById("stat-users"),
   statChannels: document.getElementById("stat-channels"),
@@ -21,7 +21,7 @@ async function adminApi(url, options = {}) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || "РќРµ СѓРґР°Р»РѕСЃСЊ РІС‹РїРѕР»РЅРёС‚СЊ Р·Р°РїСЂРѕСЃ.");
+    throw new Error(data.error || "Не удалось выполнить запрос.");
   }
   return data;
 }
@@ -38,7 +38,7 @@ function adminEscapeHtml(value) {
 
 function adminFormatDate(value) {
   if (!value) {
-    return "вЂ”";
+    return "—";
   }
   return new Intl.DateTimeFormat("ru-RU", {
     dateStyle: "medium",
@@ -62,26 +62,22 @@ function renderAdminUsers() {
   const users = adminState.overview?.users || [];
   adminDom.users.innerHTML = users.length
     ? users.map((user) => `
-      <article class="admin-table__row">
+      <article class="admin-table__row admin-table__row--users">
         <div>
           <strong>${adminEscapeHtml(user.displayName)}</strong>
-          <span>@${adminEscapeHtml(user.username)}${user.isAdmin ? " В· admin" : ""}</span>
-        </div>
-        <div>
-          <strong>${user.messageCount}</strong>
-          <span>СЃРѕРѕР±С‰РµРЅРёР№</span>
+          <span>@${adminEscapeHtml(user.username)}${user.isAdmin ? " · admin" : ""} · ${user.messageCount} сообщений</span>
         </div>
         <div>
           <strong>${adminFormatDate(user.lastLoginAt)}</strong>
-          <span>РїРѕСЃР»РµРґРЅРёР№ РІС…РѕРґ</span>
+          <span>последний вход</span>
         </div>
         <div>
           <strong>${adminFormatDate(user.createdAt)}</strong>
-          <span>СЂРµРіРёСЃС‚СЂР°С†РёСЏ</span>
+          <span>регистрация</span>
         </div>
       </article>
     `).join("")
-    : `<div class="admin-empty">РџРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РїРѕРєР° РЅРµС‚.</div>`;
+    : `<div class="admin-empty">Пользователей пока нет.</div>`;
 }
 
 function renderAdminChannels() {
@@ -92,32 +88,32 @@ function renderAdminChannels() {
         <div class="admin-message__header">
           <div>
             <strong>${adminEscapeHtml(channel.name)}</strong>
-            <p>${adminEscapeHtml(channel.description || "Р‘РµР· РѕРїРёСЃР°РЅРёСЏ.")}</p>
+            <p>${adminEscapeHtml(channel.description || "Без описания.")}</p>
           </div>
-          <span class="admin-chip">${channel.kind === "personal" ? "Р›РёС‡РЅС‹Р№" : "РћР±С‰РёР№"}</span>
+          <span class="admin-chip">${channel.kind === "personal" ? "Личный" : "Общий"}</span>
         </div>
         <div class="admin-message__footer admin-message__meta">
           <span>${adminEscapeHtml(channel.ownerDisplayName)}</span>
-          <span>${channel.messageCount} СЃРѕРѕР±С‰РµРЅРёР№</span>
+          <span>${channel.messageCount} сообщений</span>
           <span>${channel.stats.onlineCount} online</span>
-          <span>${channel.visitorCount} Р±С‹Р»Рё Р·РґРµСЃСЊ</span>
+          <span>${channel.visitorCount} были здесь</span>
         </div>
       </article>
     `).join("")
-    : `<div class="admin-empty">РљР°РЅР°Р»С‹ РїРѕРєР° РЅРµ СЃРѕР·РґР°РЅС‹.</div>`;
+    : `<div class="admin-empty">Каналы пока не созданы.</div>`;
 }
 
 function renderAdminMessages() {
   const messages = adminState.overview?.recentMessages || [];
-  adminDom.messagesTotalHint.textContent = `${messages.length} Р·Р°РїРёСЃРµР№`;
+  adminDom.messagesTotalHint.textContent = `${messages.length} записей`;
 
   adminDom.messages.innerHTML = messages.length
     ? messages.map((message) => {
       const isImage = message.attachmentType?.startsWith("image/");
       const attachment = message.hasAttachment ? `
         <div class="message-attachment">
-          ${isImage ? `<img src="${message.attachmentUrl}" alt="??????????? ?? ????">` : ""}
-          ${isImage ? "" : `<a href="${message.attachmentUrl}" target="_blank" rel="noopener noreferrer">${adminEscapeHtml(message.attachmentName || "????")}</a>`}
+          ${isImage ? `<img src="${message.attachmentUrl}" alt="Изображение из чата">` : ""}
+          ${isImage ? "" : `<a href="${message.attachmentUrl}" target="_blank" rel="noopener noreferrer">${adminEscapeHtml(message.attachmentName || "Файл")}</a>`}
         </div>
       ` : "";
 
@@ -126,11 +122,11 @@ function renderAdminMessages() {
           <div class="admin-message__header">
             <div>
               <strong>${adminEscapeHtml(message.displayName)}</strong>
-              <div class="admin-message__meta">@${adminEscapeHtml(message.username)} В· ${adminEscapeHtml(message.channelName || "РљР°РЅР°Р»")}</div>
+              <div class="admin-message__meta">@${adminEscapeHtml(message.username)} · ${adminEscapeHtml(message.channelName || "Канал")}</div>
             </div>
-            <button type="button" class="ghost-button ghost-button--small" data-delete-message="${message.id}">РЈРґР°Р»РёС‚СЊ</button>
+            <button type="button" class="ghost-button ghost-button--small" data-delete-message="${message.id}">Удалить</button>
           </div>
-          <div class="admin-message__content">${adminEscapeHtml(message.content || "Р¤Р°Р№Р» Р±РµР· С‚РµРєСЃС‚Р°")}</div>
+          <div class="admin-message__content">${adminEscapeHtml(message.content || "Файл без текста")}</div>
           ${attachment}
           <div class="admin-message__footer admin-message__meta">
             <span>${adminFormatDate(message.createdAt)}</span>
@@ -139,7 +135,7 @@ function renderAdminMessages() {
         </article>
       `;
     }).join("")
-    : `<div class="admin-empty">РЎРѕРѕР±С‰РµРЅРёР№ РїРѕРєР° РЅРµС‚.</div>`;
+    : `<div class="admin-empty">Сообщений пока нет.</div>`;
 
   adminDom.messages.querySelectorAll("[data-delete-message]").forEach((button) => {
     button.addEventListener("click", () => handleAdminDeleteMessage(Number(button.dataset.deleteMessage)));
@@ -156,7 +152,7 @@ async function loadAdminOverview() {
 }
 
 async function handleAdminDeleteMessage(messageId) {
-  if (!window.confirm("РЈРґР°Р»РёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РёР· С‡Р°С‚Р° РєР°Рє Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ?")) {
+  if (!window.confirm("Удалить сообщение из чата как администратор?")) {
     return;
   }
 
@@ -183,5 +179,5 @@ adminDom.refreshButton.addEventListener("click", () => {
 });
 
 loadAdminOverview().catch((error) => {
-  document.body.innerHTML = `<main class="admin-page"><section class="panel admin-panel"><h1>РђРґРјРёРЅРєР° РЅРµРґРѕСЃС‚СѓРїРЅР°</h1><p class="admin-empty">${adminEscapeHtml(error.message)}</p></section></main>`;
+  document.body.innerHTML = `<main class="admin-page"><section class="panel admin-panel"><h1>Админка недоступна</h1><p class="admin-empty">${adminEscapeHtml(error.message)}</p></section></main>`;
 });

@@ -573,6 +573,10 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.admin-table__row--users {
+  grid-template-columns: minmax(0, 1.7fr) minmax(165px, 1fr) minmax(165px, 1fr);
+}
+
 .admin-table__row > div {
   min-width: 0;
 }
