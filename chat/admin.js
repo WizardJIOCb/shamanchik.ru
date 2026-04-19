@@ -86,13 +86,16 @@ function renderAdminChannels() {
   const channels = adminState.overview?.channels || [];
   adminDom.channels.innerHTML = channels.length
     ? channels.map((channel) => `
-      <article class="admin-mini-card">
+      <article class="admin-mini-card" data-channel-id="${channel.id}">
         <div class="admin-message__header">
           <div>
             <strong>${adminEscapeHtml(channel.name)}</strong>
             <p>${adminEscapeHtml(channel.description || "Без описания.")}</p>
           </div>
-          <span class="admin-chip">${channel.kind === "personal" ? "Личный" : "Общий"}</span>
+          <div class="admin-mini-card__actions">
+            <span class="admin-chip">${channel.kind === "personal" ? "Личный" : "Общий"}</span>
+            <button type="button" class="ghost-button ghost-button--small ghost-button--danger" data-delete-channel="${channel.id}">Удалить</button>
+          </div>
         </div>
         <div class="admin-message__footer admin-message__meta">
           <span>${adminEscapeHtml(channel.ownerDisplayName)}</span>
@@ -103,6 +106,10 @@ function renderAdminChannels() {
       </article>
     `).join("")
     : `<div class="admin-empty">Каналы пока не созданы.</div>`;
+
+  adminDom.channels.querySelectorAll("[data-delete-channel]").forEach((button) => {
+    button.addEventListener("click", () => handleAdminDeleteChannel(Number(button.dataset.deleteChannel)));
+  });
 }
 
 function renderAdminMessages() {
@@ -171,6 +178,32 @@ async function handleAdminDeleteMessage(messageId) {
 
   renderAdminStats();
   renderAdminMessages();
+  await loadAdminOverview();
+}
+
+async function handleAdminDeleteChannel(channelId) {
+  const channel = adminState.overview?.channels?.find((item) => item.id === channelId);
+  if (!channel) {
+    return;
+  }
+
+  if (!window.confirm(`Удалить чат «${channel.name}» как администратор?`)) {
+    return;
+  }
+
+  await adminApi(`/chat-api/channels/${channelId}`, {
+    method: "DELETE"
+  });
+
+  if (adminState.overview) {
+    adminState.overview.channels = adminState.overview.channels.filter((item) => item.id !== channelId);
+    if (adminState.overview.stats.channelCount > 0) {
+      adminState.overview.stats.channelCount -= 1;
+    }
+  }
+
+  renderAdminStats();
+  renderAdminChannels();
   await loadAdminOverview();
 }
 

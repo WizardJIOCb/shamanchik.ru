@@ -649,6 +649,53 @@ function deleteMessageAndBroadcast(message, actor) {
   return channel;
 }
 
+function deleteChannelAndBroadcast(channelId, actor) {
+  const channel = db.prepare(`
+    SELECT
+      id,
+      owner_user_id AS ownerUserId
+    FROM channels
+    WHERE id = ?
+  `).get(channelId);
+
+  if (!channel) {
+    return null;
+  }
+
+  const attachments = db.prepare(`
+    SELECT attachment_url AS attachmentUrl
+    FROM messages
+    WHERE channel_id = ? AND attachment_url IS NOT NULL
+  `).all(channelId);
+
+  broadcastToChannel(channelId, {
+    type: "channelDeleted",
+    channelId
+  });
+
+  const sockets = channelSubscribers.get(channelId);
+  if (sockets) {
+    for (const ws of sockets) {
+      ws.channelId = null;
+    }
+    channelSubscribers.delete(channelId);
+  }
+
+  db.prepare("DELETE FROM channels WHERE id = ?").run(channelId);
+
+  for (const attachment of attachments) {
+    if (!attachment.attachmentUrl) {
+      continue;
+    }
+    fs.unlink(path.join(UPLOAD_DIR, path.basename(attachment.attachmentUrl)), () => {});
+  }
+
+  return {
+    deletedChannelId: channelId,
+    channels: listChannels(actor.id)
+  };
+}
+
 app.use("/chat-assets", express.static(CHAT_DIR));
 app.use("/chat-uploads", express.static(UPLOAD_DIR));
 
@@ -784,6 +831,24 @@ app.patch("/chat-api/channels/:channelId", requireAuth, (req, res) => {
   const updated = getChannelSummary(channelId, req.user.id);
   broadcastToChannel(channelId, { type: "channelUpdated", channel: updated });
   res.json({ channel: updated, channels: listChannels(req.user.id) });
+});
+
+app.delete("/chat-api/channels/:channelId", requireAuth, (req, res) => {
+  const channelId = Number(req.params.channelId);
+  const channel = db.prepare("SELECT * FROM channels WHERE id = ?").get(channelId);
+  if (!channel) {
+    return res.status(404).json({ error: "Канал не найден." });
+  }
+  if (channel.owner_user_id !== req.user.id && !req.user.isAdmin) {
+    return res.status(403).json({ error: "Удалять канал может только владелец или администратор." });
+  }
+
+  const result = deleteChannelAndBroadcast(channelId, req.user);
+  res.json({
+    ok: true,
+    channelId,
+    channels: result?.channels || []
+  });
 });
 
 app.post("/chat-api/channels/:channelId/join", requireAuth, (req, res) => {

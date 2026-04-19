@@ -456,6 +456,17 @@ textarea:focus {
   font-size: 0.82rem;
 }
 
+.ghost-button--danger {
+  color: #f0c0b3;
+  border-color: rgba(208, 122, 101, 0.34);
+  background: rgba(208, 122, 101, 0.08);
+}
+
+.ghost-button--danger:hover {
+  background: rgba(208, 122, 101, 0.16);
+  border-color: rgba(208, 122, 101, 0.5);
+}
+
 .message-card__body {
   white-space: pre-wrap;
   line-height: 1.6;
@@ -712,6 +723,13 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.admin-mini-card__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .admin-mini-card p {
   margin: 8px 0 0;
   color: var(--muted);
@@ -770,6 +788,12 @@ textarea:focus {
 
 .channel-editor {
   padding: 18px;
+}
+
+.channel-editor__actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .member-card.is-online {

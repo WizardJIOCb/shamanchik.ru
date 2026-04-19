@@ -41,6 +41,7 @@ const dom = {
   channelEditForm: document.getElementById("channel-edit-form"),
   channelEditName: document.getElementById("channel-edit-name"),
   channelEditDescription: document.getElementById("channel-edit-description"),
+  channelDeleteButton: document.getElementById("channel-delete-button"),
   profileDialog: document.getElementById("profile-dialog"),
   profileDialogBody: document.getElementById("profile-dialog-body"),
   createChannelDialog: document.getElementById("create-channel-dialog"),
@@ -291,6 +292,30 @@ function renderChannelEditor() {
   dom.channelEditDescription.value = state.currentChannel.description || "";
 }
 
+async function refreshChannelsAfterDeletion(deletedChannelId) {
+  const data = await api(`/chat-api/channels?q=${encodeURIComponent(dom.channelSearch.value || "")}`);
+  state.channels = data.channels.filter((channel) => channel.id !== deletedChannelId);
+
+  if (state.currentChannel?.id === deletedChannelId) {
+    const fallback = state.channels.find((channel) => channel.kind === "personal" && channel.ownerUserId === state.me?.id) || state.channels[0] || null;
+    state.currentChannel = null;
+    state.messages = [];
+    state.members = [];
+    renderChannels();
+    renderChannelHeader(null);
+    renderMessages();
+    renderMembers();
+    renderChannelEditor();
+    if (fallback) {
+      await selectChannel(fallback.id);
+    }
+    return;
+  }
+
+  renderChannels();
+  renderChannelEditor();
+}
+
 function connectSocket() {
   if (state.socket) {
     state.socket.close();
@@ -309,7 +334,7 @@ function connectSocket() {
     }
   });
 
-  state.socket.addEventListener("message", (event) => {
+  state.socket.addEventListener("message", async (event) => {
     const payload = JSON.parse(event.data);
 
     if (payload.type === "messageCreated" && payload.message.channelId === state.currentChannel?.id) {
@@ -355,6 +380,15 @@ function connectSocket() {
       renderChannelHeader(state.currentChannel);
       renderChannelEditor();
       syncChannelInList(payload.channel);
+      return;
+    }
+
+    if (payload.type === "channelDeleted") {
+      try {
+        await refreshChannelsAfterDeletion(payload.channelId);
+      } catch (error) {
+        console.error(error);
+      }
     }
   });
 
@@ -454,6 +488,27 @@ async function handleDeleteMessage(messageId) {
     renderChannelHeader(state.currentChannel);
   }
   renderMessages();
+}
+
+async function handleDeleteChannel(channelId) {
+  const channel = state.channels.find((item) => item.id === channelId) || state.currentChannel;
+  if (!channel) {
+    return;
+  }
+
+  const confirmText = state.me?.isAdmin && channel.ownerUserId !== state.me.id
+    ? `Удалить чат «${channel.name}» как администратор?`
+    : `Удалить чат «${channel.name}»?`;
+
+  if (!window.confirm(confirmText)) {
+    return;
+  }
+
+  await api(`/chat-api/channels/${channelId}`, {
+    method: "DELETE"
+  });
+
+  await refreshChannelsAfterDeletion(channelId);
 }
 
 function openImagePreview(src) {
@@ -640,6 +695,17 @@ dom.channelEditForm.addEventListener("submit", async (event) => {
     renderChannels();
     renderChannelHeader(state.currentChannel);
     renderChannelEditor();
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+dom.channelDeleteButton?.addEventListener("click", async () => {
+  if (!state.currentChannel) {
+    return;
+  }
+  try {
+    await handleDeleteChannel(state.currentChannel.id);
   } catch (error) {
     alert(error.message);
   }
