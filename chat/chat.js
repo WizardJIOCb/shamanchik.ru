@@ -558,6 +558,13 @@ dom.emojiTray.querySelectorAll("button").forEach((button) => {
   });
 });
 
+dom.messageContent.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && event.ctrlKey) {
+    event.preventDefault();
+    dom.messageForm.requestSubmit();
+  }
+});
+
 dom.messageForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!state.currentChannel) {
