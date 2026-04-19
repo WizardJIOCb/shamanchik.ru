@@ -17,7 +17,10 @@ const PORT = Number(process.env.PORT || 3210);
 const SESSION_COOKIE = "shamanchik_chat_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ADMIN_USERNAME = "wizardjiocb";
+const ADMIN_USERNAMES = new Set([
+  "wizardjiocb",
+  "shamanchik008"
+]);
 
 fs.mkdirSync(STORAGE_DIR, { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -208,7 +211,7 @@ function clearSessionCookie(req, res) {
 }
 
 function isAdminUser(user) {
-  return String(user?.username || "").toLowerCase() === ADMIN_USERNAME;
+  return ADMIN_USERNAMES.has(String(user?.username || "").toLowerCase());
 }
 
 function getSession(req) {
