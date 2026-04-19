@@ -15,6 +15,11 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -24,6 +29,7 @@ body {
     radial-gradient(circle at top, rgba(72, 103, 78, 0.28), transparent 30%),
     linear-gradient(180deg, rgba(4, 8, 7, 0.94), rgba(6, 12, 10, 0.98)),
     #050907;
+  overflow: hidden;
 }
 
 button,
@@ -40,11 +46,13 @@ a {
 .chat-page {
   display: grid;
   grid-template-columns: 360px minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .chat-sidebar,
 .chat-main {
+  min-height: 0;
   padding: 28px;
 }
 
@@ -52,6 +60,7 @@ a {
   border-right: 1px solid rgba(214, 176, 109, 0.12);
   background: rgba(4, 8, 7, 0.72);
   backdrop-filter: blur(18px);
+  overflow: auto;
 }
 
 .chat-brand__home,
@@ -240,6 +249,7 @@ textarea:focus {
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 20px;
+  overflow: hidden;
 }
 
 .chat-header {
@@ -380,6 +390,11 @@ textarea:focus {
   align-content: start;
   gap: 16px;
   padding: 20px;
+  overflow: auto;
+}
+
+.channel-editor {
+  padding: 18px;
 }
 
 .member-card.is-online {
@@ -459,20 +474,32 @@ textarea:focus {
 }
 
 @media (max-width: 1200px) {
+  body {
+    overflow: auto;
+  }
+
   .chat-page,
   .chat-layout {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
   }
 
   .chat-sidebar {
     border-right: 0;
     border-bottom: 1px solid rgba(214, 176, 109, 0.12);
+    overflow: visible;
   }
 
   .channel-list,
   .members-list,
   .messages-list {
     max-height: none;
+  }
+
+  .chat-main,
+  .members-panel {
+    overflow: visible;
   }
 }
 
