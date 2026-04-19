@@ -607,7 +607,7 @@ app.get("/chat-api/me", (req, res) => {
   }
   return res.json({
     authenticated: true,
-    ...authPayload(session.id)
+    ...authPayload(session.userId)
   });
 });
 
@@ -809,9 +809,14 @@ app.post("/chat-api/channels/:channelId/messages", requireAuth, upload.single("f
   `).get(Number(result.lastInsertRowid));
 
   const payload = shapeMessage(message);
-  broadcastToChannel(channelId, { type: "messageCreated", message: payload });
+  const channelSummary = getChannelSummary(channelId, req.user.id);
+  broadcastToChannel(channelId, {
+    type: "messageCreated",
+    message: payload,
+    channel: channelSummary
+  });
   broadcastPresence(channelId);
-  res.status(201).json({ message: payload, channel: getChannelSummary(channelId, req.user.id) });
+  res.status(201).json({ message: payload, channel: channelSummary });
 });
 
 app.get("/chat-api/users/:userId", requireAuth, (req, res) => {
@@ -863,7 +868,7 @@ server.on("upgrade", (req, socket, head) => {
   }
 
   wss.handleUpgrade(req, socket, head, (ws) => {
-    ws.userId = session.id;
+    ws.userId = session.userId;
     wss.emit("connection", ws, req);
   });
 });

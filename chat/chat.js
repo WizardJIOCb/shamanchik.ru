@@ -4,7 +4,8 @@ const state = {
   currentChannel: null,
   messages: [],
   members: [],
-  socket: null
+  socket: null,
+  reconnectTimer: null
 };
 
 const dom = {
@@ -192,6 +193,15 @@ function renderMessages() {
   dom.messagesList.scrollTop = dom.messagesList.scrollHeight;
 }
 
+function upsertMessage(message) {
+  const existingIndex = state.messages.findIndex((item) => item.id === message.id);
+  if (existingIndex >= 0) {
+    state.messages[existingIndex] = message;
+    return;
+  }
+  state.messages.push(message);
+}
+
 function renderMembers() {
   dom.membersCount.textContent = state.members.length ? formatCount(state.members.length, "участник", "участника", "участников") : "0 участников";
 
@@ -234,6 +244,11 @@ function connectSocket() {
     state.socket.close();
   }
 
+  if (state.reconnectTimer) {
+    clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = null;
+  }
+
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   state.socket = new WebSocket(`${protocol}//${location.host}/chat-ws`);
 
@@ -246,7 +261,12 @@ function connectSocket() {
   state.socket.addEventListener("message", (event) => {
     const payload = JSON.parse(event.data);
     if (payload.type === "messageCreated" && payload.message.channelId === state.currentChannel?.id) {
-      state.messages.push(payload.message);
+      upsertMessage(payload.message);
+      if (payload.channel) {
+        state.currentChannel = payload.channel;
+        syncChannelInList(payload.channel);
+        renderChannelHeader(state.currentChannel);
+      }
       renderMessages();
       return;
     }
@@ -269,6 +289,15 @@ function connectSocket() {
       renderChannelEditor();
       syncChannelInList(payload.channel);
     }
+  });
+
+  state.socket.addEventListener("close", () => {
+    if (!state.me) {
+      return;
+    }
+    state.reconnectTimer = setTimeout(() => {
+      connectSocket();
+    }, 1500);
   });
 }
 
@@ -454,10 +483,17 @@ dom.messageForm.addEventListener("submit", async (event) => {
   }
 
   try {
-    await api(`/chat-api/channels/${state.currentChannel.id}/messages`, {
+    const response = await api(`/chat-api/channels/${state.currentChannel.id}/messages`, {
       method: "POST",
       body: formData
     });
+    upsertMessage(response.message);
+    if (response.channel) {
+      state.currentChannel = response.channel;
+      syncChannelInList(response.channel);
+      renderChannelHeader(state.currentChannel);
+    }
+    renderMessages();
     dom.messageContent.value = "";
     dom.messageFile.value = "";
     dom.fileName.textContent = "Файл не выбран";
