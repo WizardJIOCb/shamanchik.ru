@@ -487,6 +487,13 @@ textarea:focus {
   flex-wrap: wrap;
 }
 
+.admin-actions .ghost-button,
+.admin-actions .ritual-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .admin-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
