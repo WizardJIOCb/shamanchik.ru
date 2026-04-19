@@ -18,6 +18,10 @@ const textExtensions = new Set([
   ".yml",
   ".sh"
 ]);
+const ignoredFiles = new Set([
+  ".githooks/pre-push",
+  "scripts/check-mojibake.js"
+]);
 
 const suspiciousPatterns = [
   /\uFFFD/g,
@@ -52,6 +56,7 @@ function getTrackedFiles() {
   return output
     .split("\u0000")
     .filter(Boolean)
+    .filter((filePath) => !ignoredFiles.has(filePath))
     .filter((filePath) => textExtensions.has(path.extname(filePath).toLowerCase()));
 }
 
