@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админка Лавки Шамана</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/images/icon-64.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/chat-assets/chat.css">
+</head>
+<body>
+  <main class="admin-page">
+    <header class="panel admin-header">
+      <div class="admin-header__copy">
+        <span class="chat-header__eyebrow">Внутренний чат лавки</span>
+        <h1>Админка чата</h1>
+        <p>
+          Панель модерации для пользователя <strong>WizardJIOCb</strong>. Здесь можно быстро смотреть
+          активность чата, пользователей, каналы и удалять любые сообщения при необходимости.
+        </p>
+      </div>
+      <div class="admin-actions">
+        <a href="/chat" class="ghost-button">Назад в чат</a>
+        <button type="button" class="ritual-button ritual-button--gold" id="refresh-admin-button">Обновить</button>
+      </div>
+    </header>
+
+    <section class="admin-stats" id="admin-stats">
+      <article class="panel stat-box">
+        <span>Пользователи</span>
+        <strong id="stat-users">0</strong>
+      </article>
+      <article class="panel stat-box">
+        <span>Каналы</span>
+        <strong id="stat-channels">0</strong>
+      </article>
+      <article class="panel stat-box">
+        <span>Сообщения</span>
+        <strong id="stat-messages">0</strong>
+      </article>
+      <article class="panel stat-box">
+        <span>Файлы</span>
+        <strong id="stat-attachments">0</strong>
+      </article>
+    </section>
+
+    <section class="admin-grid">
+      <div class="admin-stack">
+        <section class="panel admin-panel">
+          <div class="admin-panel__header">
+            <div>
+              <h2>Последние сообщения</h2>
+              <p>Удаление здесь работает сразу и для собственных, и для чужих сообщений от имени администратора.</p>
+            </div>
+            <span class="admin-hint" id="messages-total-hint">0 записей</span>
+          </div>
+          <div class="admin-message-list admin-scroll" id="admin-messages"></div>
+        </section>
+      </div>
+
+      <div class="admin-stack">
+        <section class="panel admin-panel">
+          <div class="admin-panel__header">
+            <div>
+              <h3>Пользователи</h3>
+              <p>Дата регистрации, последний вход и статистика по сообщениям.</p>
+            </div>
+          </div>
+          <div class="admin-table admin-scroll" id="admin-users"></div>
+        </section>
+
+        <section class="panel admin-panel">
+          <div class="admin-panel__header">
+            <div>
+              <h3>Каналы и чаты</h3>
+              <p>Владелец, активность и посещаемость каналов.</p>
+            </div>
+          </div>
+          <div class="admin-mini-list admin-scroll" id="admin-channels"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script src="/chat-assets/admin.js"></script>
+</body>
+</html>

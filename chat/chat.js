@@ -18,6 +18,7 @@ const dom = {
   selfUsername: document.getElementById("self-username"),
   logoutButton: document.getElementById("logout-button"),
   editProfileButton: document.getElementById("edit-profile-button"),
+  adminLink: document.getElementById("admin-link"),
   channelPanel: document.getElementById("channel-panel"),
   channelSearch: document.getElementById("channel-search"),
   channelList: document.getElementById("channel-list"),
@@ -88,6 +89,16 @@ function formatCount(value, one, few, many) {
   return `${value} ${many}`;
 }
 
+function escapeHtml(text) {
+  return String(text || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#39;")
+    .replace(/\n/g, "<br>");
+}
+
 function switchAuthTab(tab) {
   document.querySelectorAll("[data-auth-tab]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.authTab === tab);
@@ -96,11 +107,30 @@ function switchAuthTab(tab) {
   dom.loginForm.classList.toggle("is-hidden", tab !== "login");
 }
 
+function upsertMessage(message) {
+  const index = state.messages.findIndex((item) => item.id === message.id);
+  if (index >= 0) {
+    state.messages[index] = message;
+    return;
+  }
+  state.messages.push(message);
+}
+
+function removeMessage(messageId) {
+  state.messages = state.messages.filter((message) => message.id !== messageId);
+}
+
+function syncChannelInList(channel) {
+  state.channels = state.channels.map((item) => item.id === channel.id ? { ...item, ...channel } : item);
+  renderChannels();
+}
+
 function renderSelf() {
   if (!state.me) {
     dom.selfProfileCard.classList.add("is-hidden");
     dom.authPanel.classList.remove("is-hidden");
     dom.channelPanel.classList.add("is-hidden");
+    dom.adminLink?.classList.add("is-hidden");
     return;
   }
 
@@ -109,10 +139,13 @@ function renderSelf() {
   dom.channelPanel.classList.remove("is-hidden");
   dom.selfDisplayName.textContent = state.me.displayName;
   dom.selfUsername.textContent = `@${state.me.username}`;
-
   dom.editProfileForm.displayName.value = state.me.displayName || "";
   dom.editProfileForm.bio.value = state.me.bio || "";
   dom.editProfileForm.location.value = state.me.location || "";
+
+  if (dom.adminLink) {
+    dom.adminLink.classList.toggle("is-hidden", !state.me.isAdmin);
+  }
 }
 
 function renderChannels() {
@@ -124,12 +157,12 @@ function renderChannels() {
   dom.channelList.innerHTML = state.channels.map((channel) => `
     <article class="channel-card ${state.currentChannel?.id === channel.id ? "is-active" : ""}" data-channel-id="${channel.id}">
       <div class="channel-card__row">
-        <strong>${channel.name}</strong>
+        <strong>${escapeHtml(channel.name)}</strong>
         <span class="badge">${channel.kind === "personal" ? "Личный" : "Общий"}</span>
       </div>
-      <p>${channel.description || "Без описания."}</p>
+      <p>${escapeHtml(channel.description || "Без описания.")}</p>
       <div class="channel-card__row channel-card__meta">
-        <span>${channel.ownerDisplayName}</span>
+        <span>${escapeHtml(channel.ownerDisplayName)}</span>
         <span>${channel.stats.onlineCount} online</span>
       </div>
       <div class="channel-card__row channel-card__meta">
@@ -167,22 +200,27 @@ function renderMessages() {
   }
 
   dom.messagesList.innerHTML = state.messages.map((message) => {
-    const attachment = message.hasAttachment
-      ? `
-        <div class="message-attachment">
-          ${message.attachmentType?.startsWith("image/")
-            ? `<img src="${message.attachmentUrl}" alt="${message.attachmentName || "attachment"}">`
-            : ""}
-          <a href="${message.attachmentUrl}" target="_blank" rel="noopener noreferrer">${message.attachmentName || "Скачать файл"}</a>
-        </div>
-      `
-      : "";
+    const attachment = message.hasAttachment ? `
+      <div class="message-attachment">
+        ${message.attachmentType?.startsWith("image/") ? `<img src="${message.attachmentUrl}" alt="${escapeHtml(message.attachmentName || "attachment")}">` : ""}
+        <a href="${message.attachmentUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(message.attachmentName || "Скачать файл")}</a>
+      </div>
+    ` : "";
+
+    const actions = message.canDelete ? `
+      <button type="button" class="ghost-button ghost-button--small message-delete-button" data-message-id="${message.id}">
+        Удалить
+      </button>
+    ` : "";
 
     return `
       <article class="message-card">
         <div class="message-card__meta">
-          <strong class="message-card__author">${message.displayName}</strong>
-          <span>${formatDate(message.createdAt)}</span>
+          <strong class="message-card__author">${escapeHtml(message.displayName)}</strong>
+          <div class="message-card__actions">
+            <span>${formatDate(message.createdAt)}</span>
+            ${actions}
+          </div>
         </div>
         <div class="message-card__body">${escapeHtml(message.content || "")}</div>
         ${attachment}
@@ -190,20 +228,17 @@ function renderMessages() {
     `;
   }).join("");
 
+  dom.messagesList.querySelectorAll("[data-message-id]").forEach((button) => {
+    button.addEventListener("click", () => handleDeleteMessage(Number(button.dataset.messageId)));
+  });
+
   dom.messagesList.scrollTop = dom.messagesList.scrollHeight;
 }
 
-function upsertMessage(message) {
-  const existingIndex = state.messages.findIndex((item) => item.id === message.id);
-  if (existingIndex >= 0) {
-    state.messages[existingIndex] = message;
-    return;
-  }
-  state.messages.push(message);
-}
-
 function renderMembers() {
-  dom.membersCount.textContent = state.members.length ? formatCount(state.members.length, "участник", "участника", "участников") : "0 участников";
+  dom.membersCount.textContent = state.members.length
+    ? formatCount(state.members.length, "участник", "участника", "участников")
+    : "0 участников";
 
   if (!state.members.length) {
     dom.membersList.innerHTML = `<div class="empty-state"><p>Список участников появится после открытия канала.</p></div>`;
@@ -213,10 +248,10 @@ function renderMembers() {
   dom.membersList.innerHTML = state.members.map((member) => `
     <article class="member-card ${member.isOnline ? "is-online" : ""}" data-user-id="${member.id}">
       <div class="member-card__row">
-        <strong>${member.displayName}</strong>
+        <strong>${escapeHtml(member.displayName)}</strong>
         <span class="member-status">${member.isOnline ? "в сети" : "не в сети"}</span>
       </div>
-      <p class="member-card__meta">@${member.username}</p>
+      <p class="member-card__meta">@${escapeHtml(member.username)}${member.isAdmin ? " · admin" : ""}</p>
       <div class="member-card__row member-card__meta">
         <span>${member.messageCount} сообщений</span>
         <span>${member.createdChannelsCount} каналов</span>
@@ -230,7 +265,7 @@ function renderMembers() {
 }
 
 function renderChannelEditor() {
-  if (!state.currentChannel || !state.me || state.currentChannel.ownerUserId !== state.me.id) {
+  if (!state.currentChannel || !state.me || (state.currentChannel.ownerUserId !== state.me.id && !state.me.isAdmin)) {
     dom.channelEditor.classList.add("is-hidden");
     return;
   }
@@ -243,7 +278,6 @@ function connectSocket() {
   if (state.socket) {
     state.socket.close();
   }
-
   if (state.reconnectTimer) {
     clearTimeout(state.reconnectTimer);
     state.reconnectTimer = null;
@@ -260,8 +294,20 @@ function connectSocket() {
 
   state.socket.addEventListener("message", (event) => {
     const payload = JSON.parse(event.data);
+
     if (payload.type === "messageCreated" && payload.message.channelId === state.currentChannel?.id) {
       upsertMessage(payload.message);
+      if (payload.channel) {
+        state.currentChannel = payload.channel;
+        syncChannelInList(payload.channel);
+        renderChannelHeader(state.currentChannel);
+      }
+      renderMessages();
+      return;
+    }
+
+    if (payload.type === "messageDeleted" && state.currentChannel?.id === payload.channel?.id) {
+      removeMessage(payload.messageId);
       if (payload.channel) {
         state.currentChannel = payload.channel;
         syncChannelInList(payload.channel);
@@ -275,8 +321,12 @@ function connectSocket() {
       state.currentChannel.stats = payload.stats;
       state.members = payload.users.map((user) => {
         const existing = state.members.find((member) => member.id === user.id);
-        return existing ? { ...existing, isOnline: true } : { ...user, isOnline: true };
-      }).concat(state.members.filter((member) => !payload.users.some((user) => user.id === member.id)).map((member) => ({ ...member, isOnline: false })));
+        return existing ? { ...existing, ...user, isOnline: true } : { ...user, isOnline: true };
+      }).concat(
+        state.members
+          .filter((member) => !payload.users.some((user) => user.id === member.id))
+          .map((member) => ({ ...member, isOnline: false }))
+      );
       renderChannelHeader(state.currentChannel);
       renderMembers();
       syncChannelInList(state.currentChannel);
@@ -295,15 +345,8 @@ function connectSocket() {
     if (!state.me) {
       return;
     }
-    state.reconnectTimer = setTimeout(() => {
-      connectSocket();
-    }, 1500);
+    state.reconnectTimer = setTimeout(connectSocket, 1500);
   });
-}
-
-function syncChannelInList(channel) {
-  state.channels = state.channels.map((item) => item.id === channel.id ? { ...item, ...channel } : item);
-  renderChannels();
 }
 
 async function bootstrap() {
@@ -319,7 +362,7 @@ async function bootstrap() {
     if (preferred) {
       await selectChannel(preferred.id);
     }
-  } catch (_error) {
+  } catch {
     state.me = null;
     state.channels = [];
     renderSelf();
@@ -336,6 +379,7 @@ async function selectChannel(channelId) {
   state.currentChannel = channelData.channel;
   state.members = channelData.users;
   state.messages = messagesData.messages;
+
   renderChannels();
   renderChannelHeader(state.currentChannel);
   renderMessages();
@@ -347,25 +391,14 @@ async function selectChannel(channelId) {
   }
 }
 
-function escapeHtml(text) {
-  return String(text || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll("\"", "&quot;")
-    .replaceAll("'", "&#39;")
-    .replace(/\n/g, "<br>");
-}
-
 async function openProfile(userId) {
-  const data = await api(`/chat-api/users/${userId}`);
-  const user = data.user;
+  const { user } = await api(`/chat-api/users/${userId}`);
   dom.profileDialogBody.innerHTML = `
     <section class="profile-summary">
-      <h3>${user.displayName}</h3>
-      <p>@${user.username}</p>
-      <p>${user.bio || "Пользователь пока ничего не рассказал о себе."}</p>
-      <p>${user.location ? `Локация: ${user.location}` : "Локация не указана."}</p>
+      <h3>${escapeHtml(user.displayName)}</h3>
+      <p>@${escapeHtml(user.username)}${user.isAdmin ? " · администратор" : ""}</p>
+      <p>${escapeHtml(user.bio || "Пользователь пока ничего не рассказал о себе.")}</p>
+      <p>${user.location ? `Локация: ${escapeHtml(user.location)}` : "Локация не указана."}</p>
     </section>
     <section class="profile-stats">
       <article class="profile-stat"><span>Дата регистрации</span><strong>${formatDate(user.createdAt)}</strong></article>
@@ -377,6 +410,30 @@ async function openProfile(userId) {
     </section>
   `;
   dom.profileDialog.showModal();
+}
+
+async function handleDeleteMessage(messageId) {
+  const message = state.messages.find((item) => item.id === messageId);
+  if (!message) {
+    return;
+  }
+  const confirmText = state.me?.isAdmin && message.userId !== state.me.id
+    ? "Удалить чужое сообщение как администратор?"
+    : "Удалить сообщение?";
+  if (!window.confirm(confirmText)) {
+    return;
+  }
+
+  const response = await api(`/chat-api/messages/${messageId}`, {
+    method: "DELETE"
+  });
+  removeMessage(messageId);
+  if (response.channel) {
+    state.currentChannel = response.channel;
+    syncChannelInList(response.channel);
+    renderChannelHeader(state.currentChannel);
+  }
+  renderMessages();
 }
 
 document.querySelectorAll("[data-auth-tab]").forEach((button) => {

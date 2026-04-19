@@ -17,6 +17,7 @@ const PORT = Number(process.env.PORT || 3210);
 const SESSION_COOKIE = "shamanchik_chat_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const ADMIN_USERNAME = "wizardjiocb";
 
 fs.mkdirSync(STORAGE_DIR, { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -110,18 +111,16 @@ app.set("trust proxy", 1);
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    const safeBase = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const ext = path.extname(safeBase);
-    const name = path.basename(safeBase, ext).slice(0, 48) || "file";
-    cb(null, `${Date.now()}-${crypto.randomUUID()}-${name}${ext}`);
-  }
-});
-
 const upload = multer({
-  storage,
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+    filename: (_req, file, cb) => {
+      const safeBase = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const ext = path.extname(safeBase);
+      const name = path.basename(safeBase, ext).slice(0, 48) || "file";
+      cb(null, `${Date.now()}-${crypto.randomUUID()}-${name}${ext}`);
+    }
+  }),
   limits: { fileSize: MAX_FILE_SIZE }
 });
 
@@ -129,10 +128,10 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function dateKey(daysAgo = 0) {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - daysAgo);
-  return d.toISOString().slice(0, 10);
+function dayKey(offset = 0) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - offset);
+  return date.toISOString().slice(0, 10);
 }
 
 function cleanText(value, limit = 2000) {
@@ -149,12 +148,13 @@ function slugify(value) {
 }
 
 function uniqueSlug(base) {
-  let slug = slugify(base);
+  const normalized = slugify(base);
+  let slug = normalized;
   let suffix = 1;
-  const stmt = db.prepare("SELECT 1 FROM channels WHERE slug = ?");
-  while (stmt.get(slug)) {
+  const exists = db.prepare("SELECT 1 FROM channels WHERE slug = ?");
+  while (exists.get(slug)) {
     suffix += 1;
-    slug = `${slugify(base).slice(0, 40)}-${suffix}`;
+    slug = `${normalized.slice(0, 40)}-${suffix}`;
   }
   return slug;
 }
@@ -171,8 +171,7 @@ function parseCookies(cookieHeader = "") {
 }
 
 function setCookie(res, name, value, options = {}) {
-  const parts = [`${name}=${encodeURIComponent(value)}`];
-  parts.push(`Path=${options.path || "/"}`);
+  const parts = [`${name}=${encodeURIComponent(value)}`, `Path=${options.path || "/"}`];
   if (options.httpOnly !== false) {
     parts.push("HttpOnly");
   }
@@ -208,17 +207,29 @@ function clearSessionCookie(req, res) {
   });
 }
 
+function isAdminUser(user) {
+  return String(user?.username || "").toLowerCase() === ADMIN_USERNAME;
+}
+
 function getSession(req) {
-  const cookies = parseCookies(req.headers.cookie || "");
-  const token = cookies[SESSION_COOKIE];
+  const token = parseCookies(req.headers.cookie || "")[SESSION_COOKIE];
   if (!token) {
     return null;
   }
 
   const session = db.prepare(`
-    SELECT s.id AS sessionId, s.user_id AS userId, s.expires_at AS expiresAt,
-           u.id AS id, u.username, u.display_name AS displayName, u.bio, u.location,
-           u.created_at AS createdAt, u.last_login_at AS lastLoginAt, u.last_seen_at AS lastSeenAt
+    SELECT
+      s.id AS sessionId,
+      s.user_id AS userId,
+      s.expires_at AS expiresAt,
+      u.id AS id,
+      u.username,
+      u.display_name AS displayName,
+      u.bio,
+      u.location,
+      u.created_at AS createdAt,
+      u.last_login_at AS lastLoginAt,
+      u.last_seen_at AS lastSeenAt
     FROM sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.id = ?
@@ -236,7 +247,11 @@ function getSession(req) {
   const stamp = nowIso();
   db.prepare("UPDATE sessions SET last_seen_at = ? WHERE id = ?").run(stamp, token);
   db.prepare("UPDATE users SET last_seen_at = ? WHERE id = ?").run(stamp, session.userId);
-  return session;
+
+  return {
+    ...session,
+    isAdmin: isAdminUser(session)
+  };
 }
 
 function requireAuth(req, res, next) {
@@ -245,11 +260,23 @@ function requireAuth(req, res, next) {
     return res.status(401).json({ error: "Требуется авторизация." });
   }
   req.user = session;
-  return next();
+  next();
+}
+
+function requireAdmin(req, res, next) {
+  const session = getSession(req);
+  if (!session) {
+    return res.status(401).json({ error: "Требуется авторизация." });
+  }
+  if (!session.isAdmin) {
+    return res.status(403).json({ error: "Доступ только для администратора." });
+  }
+  req.user = session;
+  next();
 }
 
 function publicUserProfile(userId) {
-  return db.prepare(`
+  const user = db.prepare(`
     SELECT
       u.id,
       u.username,
@@ -265,15 +292,23 @@ function publicUserProfile(userId) {
     FROM users u
     WHERE u.id = ?
   `).get(userId);
+
+  if (!user) {
+    return null;
+  }
+
+  return {
+    ...user,
+    isAdmin: isAdminUser(user)
+  };
 }
 
 function ensureChannelMembership(channelId, userId, role = "member") {
-  const joinedAt = nowIso();
   db.prepare(`
     INSERT INTO channel_members(channel_id, user_id, role, joined_at)
     VALUES (?, ?, ?, ?)
     ON CONFLICT(channel_id, user_id) DO NOTHING
-  `).run(channelId, userId, role, joinedAt);
+  `).run(channelId, userId, role, nowIso());
 }
 
 function markChannelActivity(channelId, userId) {
@@ -291,77 +326,31 @@ function markChannelActivity(channelId, userId) {
     INSERT INTO channel_daily_activity(channel_id, user_id, activity_date)
     VALUES (?, ?, ?)
     ON CONFLICT(channel_id, user_id, activity_date) DO NOTHING
-  `).run(channelId, userId, dateKey(0));
+  `).run(channelId, userId, dayKey(0));
 }
 
-function createChannel({ name, description, ownerUserId, kind = "public" }) {
-  const createdAt = nowIso();
-  const slug = uniqueSlug(name);
-  const result = db.prepare(`
-    INSERT INTO channels(slug, name, description, kind, owner_user_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(slug, cleanText(name, 80), cleanText(description, 280), kind, ownerUserId, createdAt, createdAt);
-  const channelId = Number(result.lastInsertRowid);
-  ensureChannelMembership(channelId, ownerUserId, "owner");
-  return getChannelSummary(channelId, ownerUserId);
-}
-
-function ensureDefaultChannels() {
-  const existing = db.prepare("SELECT COUNT(*) AS count FROM channels").get().count;
-  if (existing > 0) {
-    return;
+function getOnlineUsers(channelId) {
+  const sockets = channelSubscribers.get(channelId) || new Set();
+  const users = new Map();
+  for (const socket of sockets) {
+    if (!socket.userId || users.has(socket.userId)) {
+      continue;
+    }
+    const profile = publicUserProfile(socket.userId);
+    if (profile) {
+      users.set(socket.userId, profile);
+    }
   }
-  const admin = db.prepare("SELECT id FROM users ORDER BY id ASC LIMIT 1").get();
-  if (!admin) {
-    return;
-  }
-  createChannel({
-    name: "Общий чат",
-    description: "Главный канал лавки: вопросы, отзывы, обсуждение товаров и атмосфера леса.",
-    ownerUserId: admin.id
-  });
-  createChannel({
-    name: "Подбор продукта",
-    description: "Канал для вопросов по подбору формата, курса, дозировки и сочетаний.",
-    ownerUserId: admin.id
-  });
-  createChannel({
-    name: "Дары леса",
-    description: "Отдельный канал под новые поступления, редкие позиции и новости лавки.",
-    ownerUserId: admin.id
-  });
-}
-
-function ensurePersonalChannel(userId, displayName) {
-  const existing = db.prepare(`
-    SELECT id
-    FROM channels
-    WHERE owner_user_id = ? AND kind = 'personal'
-    LIMIT 1
-  `).get(userId);
-
-  if (existing) {
-    ensureChannelMembership(existing.id, userId, "owner");
-    return existing.id;
-  }
-
-  const channel = createChannel({
-    name: `Канал ${displayName}`,
-    description: "Личная комната пользователя. Можно оформлять её под свои темы и закреплённые обсуждения.",
-    ownerUserId: userId,
-    kind: "personal"
-  });
-  return channel.id;
+  return [...users.values()];
 }
 
 function getChannelStats(channelId) {
-  const onlineIds = getOnlineUsers(channelId).map((user) => user.id);
   return {
-    onlineCount: onlineIds.length,
+    onlineCount: getOnlineUsers(channelId).length,
     visitorCount: db.prepare("SELECT COUNT(*) AS count FROM channel_visits WHERE channel_id = ?").get(channelId).count,
-    dau: db.prepare("SELECT COUNT(DISTINCT user_id) AS count FROM channel_daily_activity WHERE channel_id = ? AND activity_date >= ?").get(channelId, dateKey(0)).count,
-    wau: db.prepare("SELECT COUNT(DISTINCT user_id) AS count FROM channel_daily_activity WHERE channel_id = ? AND activity_date >= ?").get(channelId, dateKey(6)).count,
-    mau: db.prepare("SELECT COUNT(DISTINCT user_id) AS count FROM channel_daily_activity WHERE channel_id = ? AND activity_date >= ?").get(channelId, dateKey(29)).count
+    dau: db.prepare("SELECT COUNT(DISTINCT user_id) AS count FROM channel_daily_activity WHERE channel_id = ? AND activity_date >= ?").get(channelId, dayKey(0)).count,
+    wau: db.prepare("SELECT COUNT(DISTINCT user_id) AS count FROM channel_daily_activity WHERE channel_id = ? AND activity_date >= ?").get(channelId, dayKey(6)).count,
+    mau: db.prepare("SELECT COUNT(DISTINCT user_id) AS count FROM channel_daily_activity WHERE channel_id = ? AND activity_date >= ?").get(channelId, dayKey(29)).count
   };
 }
 
@@ -395,9 +384,69 @@ function getChannelSummary(channelId, currentUserId) {
   };
 }
 
+function createChannel({ name, description, ownerUserId, kind = "public" }) {
+  const stamp = nowIso();
+  const result = db.prepare(`
+    INSERT INTO channels(slug, name, description, kind, owner_user_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(uniqueSlug(name), cleanText(name, 80), cleanText(description, 280), kind, ownerUserId, stamp, stamp);
+
+  const channelId = Number(result.lastInsertRowid);
+  ensureChannelMembership(channelId, ownerUserId, "owner");
+  return getChannelSummary(channelId, ownerUserId);
+}
+
+function ensureDefaultChannels() {
+  const count = db.prepare("SELECT COUNT(*) AS count FROM channels").get().count;
+  if (count > 0) {
+    return;
+  }
+  const owner = db.prepare("SELECT id FROM users ORDER BY id ASC LIMIT 1").get();
+  if (!owner) {
+    return;
+  }
+  createChannel({
+    name: "Общий чат",
+    description: "Главный канал лавки: вопросы, отзывы, обсуждение товаров и атмосфера леса.",
+    ownerUserId: owner.id
+  });
+  createChannel({
+    name: "Подбор продукта",
+    description: "Канал для вопросов по подбору курса, дозировки и сочетаний товаров.",
+    ownerUserId: owner.id
+  });
+  createChannel({
+    name: "Дары леса",
+    description: "Новости лавки, редкие позиции, сезонные подборки и обновления.",
+    ownerUserId: owner.id
+  });
+}
+
+function ensurePersonalChannel(userId, displayName) {
+  const existing = db.prepare(`
+    SELECT id
+    FROM channels
+    WHERE owner_user_id = ? AND kind = 'personal'
+    LIMIT 1
+  `).get(userId);
+
+  if (existing) {
+    ensureChannelMembership(existing.id, userId, "owner");
+    return existing.id;
+  }
+
+  const created = createChannel({
+    name: `Канал ${displayName}`,
+    description: "Личная комната пользователя. Здесь можно вести свои темы и оформлять собственный канал.",
+    ownerUserId: userId,
+    kind: "personal"
+  });
+  return created.id;
+}
+
 function listChannels(currentUserId, search = "") {
   const needle = `%${cleanText(search, 80).toLowerCase()}%`;
-  const channels = db.prepare(`
+  return db.prepare(`
     SELECT
       c.id,
       c.slug,
@@ -421,9 +470,7 @@ function listChannels(currentUserId, search = "") {
         ELSE 2
       END,
       c.updated_at DESC
-  `).all(currentUserId, needle, needle, needle, currentUserId, currentUserId);
-
-  return channels.map((channel) => ({
+  `).all(currentUserId, needle, needle, needle, currentUserId, currentUserId).map((channel) => ({
     ...channel,
     stats: getChannelStats(channel.id)
   }));
@@ -452,7 +499,8 @@ function listChannelMessages(channelId) {
 }
 
 function listChannelUsers(channelId) {
-  const users = db.prepare(`
+  const onlineIds = new Set(getOnlineUsers(channelId).map((user) => user.id));
+  return db.prepare(`
     SELECT
       u.id,
       u.username,
@@ -471,12 +519,10 @@ function listChannelUsers(channelId) {
     JOIN users u ON u.id = cm.user_id
     WHERE cm.channel_id = ?
     ORDER BY cm.role = 'owner' DESC, u.display_name COLLATE NOCASE ASC
-  `).all(channelId);
-
-  const onlineSet = new Set(getOnlineUsers(channelId).map((user) => user.id));
-  return users.map((user) => ({
+  `).all(channelId).map((user) => ({
     ...user,
-    isOnline: onlineSet.has(user.id)
+    isOnline: onlineIds.has(user.id),
+    isAdmin: isAdminUser(user)
   }));
 }
 
@@ -491,81 +537,41 @@ function getChannelWithAutoJoin(channelId, userId) {
 }
 
 function createSession(userId) {
-  const id = crypto.randomUUID();
+  const sessionId = crypto.randomUUID();
   const createdAt = nowIso();
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
   db.prepare(`
     INSERT INTO sessions(id, user_id, created_at, expires_at, last_seen_at)
     VALUES (?, ?, ?, ?, ?)
-  `).run(id, userId, createdAt, expiresAt, createdAt);
-  return id;
+  `).run(sessionId, userId, createdAt, expiresAt, createdAt);
+  return sessionId;
 }
 
-function deleteSession(id) {
-  db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+function deleteSession(sessionId) {
+  db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
 }
 
-function shapeMessage(message) {
+function withMessagePermissions(message, viewer) {
   return {
     ...message,
-    hasAttachment: Boolean(message.attachmentUrl)
+    hasAttachment: Boolean(message.attachmentUrl),
+    canDelete: Boolean(viewer && (viewer.id === message.userId || isAdminUser(viewer)))
   };
+}
+
+function enrichMessages(messages, viewer) {
+  return messages.map((message) => withMessagePermissions(message, viewer));
 }
 
 const channelSubscribers = new Map();
 
-function subscribeSocketToChannel(ws, channelId) {
-  if (ws.channelId && ws.channelId !== channelId) {
-    unsubscribeSocket(ws);
-  }
-  ws.channelId = channelId;
-  let set = channelSubscribers.get(channelId);
-  if (!set) {
-    set = new Set();
-    channelSubscribers.set(channelId, set);
-  }
-  set.add(ws);
-  broadcastPresence(channelId);
-}
-
-function unsubscribeSocket(ws) {
-  if (!ws.channelId) {
-    return;
-  }
-  const set = channelSubscribers.get(ws.channelId);
-  if (set) {
-    set.delete(ws);
-    if (set.size === 0) {
-      channelSubscribers.delete(ws.channelId);
-    } else {
-      broadcastPresence(ws.channelId);
-    }
-  }
-  ws.channelId = null;
-}
-
-function getOnlineUsers(channelId) {
-  const set = channelSubscribers.get(channelId) || new Set();
-  const uniqueUsers = new Map();
-  for (const socket of set) {
-    if (!socket.userId || uniqueUsers.has(socket.userId)) {
-      continue;
-    }
-    const profile = publicUserProfile(socket.userId);
-    if (profile) {
-      uniqueUsers.set(socket.userId, profile);
-    }
-  }
-  return [...uniqueUsers.values()];
-}
-
 function broadcastToChannel(channelId, payload) {
-  const set = channelSubscribers.get(channelId);
-  if (!set) {
+  const sockets = channelSubscribers.get(channelId);
+  if (!sockets) {
     return;
   }
   const message = JSON.stringify(payload);
-  for (const socket of set) {
+  for (const socket of sockets) {
     if (socket.readyState === WebSocket.OPEN) {
       socket.send(message);
     }
@@ -578,6 +584,34 @@ function broadcastPresence(channelId) {
     users: getOnlineUsers(channelId),
     stats: getChannelStats(channelId)
   });
+}
+
+function subscribeSocket(ws, channelId) {
+  if (ws.channelId && ws.channelId !== channelId) {
+    unsubscribeSocket(ws);
+  }
+  ws.channelId = channelId;
+  if (!channelSubscribers.has(channelId)) {
+    channelSubscribers.set(channelId, new Set());
+  }
+  channelSubscribers.get(channelId).add(ws);
+  broadcastPresence(channelId);
+}
+
+function unsubscribeSocket(ws) {
+  if (!ws.channelId) {
+    return;
+  }
+  const sockets = channelSubscribers.get(ws.channelId);
+  if (sockets) {
+    sockets.delete(ws);
+    if (sockets.size === 0) {
+      channelSubscribers.delete(ws.channelId);
+    } else {
+      broadcastPresence(ws.channelId);
+    }
+  }
+  ws.channelId = null;
 }
 
 function authPayload(userId) {
@@ -593,11 +627,41 @@ function authPayload(userId) {
   };
 }
 
+function deleteMessageAndBroadcast(message, actor) {
+  db.prepare("DELETE FROM messages WHERE id = ?").run(message.id);
+  db.prepare("UPDATE channels SET updated_at = ? WHERE id = ?").run(nowIso(), message.channelId);
+
+  if (message.attachmentUrl) {
+    const filePath = path.join(UPLOAD_DIR, path.basename(message.attachmentUrl));
+    fs.unlink(filePath, () => {});
+  }
+
+  const channel = getChannelSummary(message.channelId, actor.id);
+  broadcastToChannel(message.channelId, {
+    type: "messageDeleted",
+    messageId: message.id,
+    channel
+  });
+  broadcastPresence(message.channelId);
+  return channel;
+}
+
 app.use("/chat-assets", express.static(CHAT_DIR));
 app.use("/chat-uploads", express.static(UPLOAD_DIR));
 
 app.get(["/chat", "/chat/"], (_req, res) => {
   res.sendFile(path.join(CHAT_DIR, "index.html"));
+});
+
+app.get(["/chat/admin", "/chat/admin/"], (req, res) => {
+  const session = getSession(req);
+  if (!session) {
+    return res.redirect("/chat");
+  }
+  if (!session.isAdmin) {
+    return res.status(403).type("text/plain; charset=utf-8").send("Доступ только для администратора.");
+  }
+  return res.sendFile(path.join(CHAT_DIR, "admin.html"));
 });
 
 app.get("/chat-api/me", (req, res) => {
@@ -627,15 +691,15 @@ app.post("/chat-api/auth/register", async (req, res) => {
   }
 
   const stamp = nowIso();
-  const passwordHash = await bcrypt.hash(password, 10);
+  const hash = await bcrypt.hash(password, 10);
   const result = db.prepare(`
     INSERT INTO users(username, password_hash, display_name, bio, location, created_at, last_login_at, last_seen_at)
     VALUES (?, ?, ?, '', '', ?, ?, ?)
-  `).run(username, passwordHash, displayName, stamp, stamp, stamp);
+  `).run(username, hash, displayName, stamp, stamp, stamp);
 
   const userId = Number(result.lastInsertRowid);
   ensureDefaultChannels();
-  const general = db.prepare("SELECT id FROM channels WHERE slug = 'obshchii-chat' OR name = 'Общий чат' LIMIT 1").get();
+  const general = db.prepare("SELECT id FROM channels WHERE kind = 'public' ORDER BY id ASC LIMIT 1").get();
   if (general) {
     ensureChannelMembership(general.id, userId);
   }
@@ -643,7 +707,7 @@ app.post("/chat-api/auth/register", async (req, res) => {
 
   const sessionId = createSession(userId);
   issueSessionCookie(req, res, sessionId);
-  return res.status(201).json(authPayload(userId));
+  res.status(201).json(authPayload(userId));
 });
 
 app.post("/chat-api/auth/login", async (req, res) => {
@@ -662,13 +726,13 @@ app.post("/chat-api/auth/login", async (req, res) => {
 
   const sessionId = createSession(user.id);
   issueSessionCookie(req, res, sessionId);
-  return res.json(authPayload(user.id));
+  res.json(authPayload(user.id));
 });
 
 app.post("/chat-api/auth/logout", requireAuth, (req, res) => {
-  const cookies = parseCookies(req.headers.cookie || "");
-  if (cookies[SESSION_COOKIE]) {
-    deleteSession(cookies[SESSION_COOKIE]);
+  const sessionId = parseCookies(req.headers.cookie || "")[SESSION_COOKIE];
+  if (sessionId) {
+    deleteSession(sessionId);
   }
   clearSessionCookie(req, res);
   res.json({ ok: true });
@@ -699,17 +763,20 @@ app.patch("/chat-api/channels/:channelId", requireAuth, (req, res) => {
   if (!channel) {
     return res.status(404).json({ error: "Канал не найден." });
   }
-  if (channel.owner_user_id !== req.user.id) {
-    return res.status(403).json({ error: "Редактировать канал может только владелец." });
+  if (channel.owner_user_id !== req.user.id && !req.user.isAdmin) {
+    return res.status(403).json({ error: "Редактировать канал может только владелец или администратор." });
   }
 
-  const name = cleanText(req.body.name, 80) || channel.name;
-  const description = cleanText(req.body.description, 280);
   db.prepare(`
     UPDATE channels
     SET name = ?, description = ?, updated_at = ?
     WHERE id = ?
-  `).run(name, description, nowIso(), channelId);
+  `).run(
+    cleanText(req.body.name, 80) || channel.name,
+    cleanText(req.body.description, 280),
+    nowIso(),
+    channelId
+  );
 
   const updated = getChannelSummary(channelId, req.user.id);
   broadcastToChannel(channelId, { type: "channelUpdated", channel: updated });
@@ -728,42 +795,41 @@ app.post("/chat-api/channels/:channelId/join", requireAuth, (req, res) => {
 });
 
 app.get("/chat-api/channels/:channelId", requireAuth, (req, res) => {
-  const channelId = Number(req.params.channelId);
-  const channel = getChannelWithAutoJoin(channelId, req.user.id);
+  const channel = getChannelWithAutoJoin(Number(req.params.channelId), req.user.id);
   if (!channel) {
     return res.status(404).json({ error: "Канал не найден." });
   }
   res.json({
     channel,
-    users: listChannelUsers(channelId)
+    users: listChannelUsers(channel.id)
   });
 });
 
 app.get("/chat-api/channels/:channelId/messages", requireAuth, (req, res) => {
-  const channelId = Number(req.params.channelId);
-  const channel = getChannelWithAutoJoin(channelId, req.user.id);
-  if (!channel) {
-    return res.status(404).json({ error: "Канал не найден." });
-  }
-  res.json({ channel, messages: listChannelMessages(channelId).map(shapeMessage) });
-});
-
-app.get("/chat-api/channels/:channelId/users", requireAuth, (req, res) => {
-  const channelId = Number(req.params.channelId);
-  const channel = getChannelWithAutoJoin(channelId, req.user.id);
+  const channel = getChannelWithAutoJoin(Number(req.params.channelId), req.user.id);
   if (!channel) {
     return res.status(404).json({ error: "Канал не найден." });
   }
   res.json({
     channel,
-    users: listChannelUsers(channelId),
-    stats: getChannelStats(channelId)
+    messages: enrichMessages(listChannelMessages(channel.id), req.user)
+  });
+});
+
+app.get("/chat-api/channels/:channelId/users", requireAuth, (req, res) => {
+  const channel = getChannelWithAutoJoin(Number(req.params.channelId), req.user.id);
+  if (!channel) {
+    return res.status(404).json({ error: "Канал не найден." });
+  }
+  res.json({
+    channel,
+    users: listChannelUsers(channel.id),
+    stats: getChannelStats(channel.id)
   });
 });
 
 app.post("/chat-api/channels/:channelId/messages", requireAuth, upload.single("file"), (req, res) => {
-  const channelId = Number(req.params.channelId);
-  const channel = getChannelWithAutoJoin(channelId, req.user.id);
+  const channel = getChannelWithAutoJoin(Number(req.params.channelId), req.user.id);
   if (!channel) {
     if (req.file?.path) {
       fs.unlink(req.file.path, () => {});
@@ -785,10 +851,10 @@ app.post("/chat-api/channels/:channelId/messages", requireAuth, upload.single("f
   const result = db.prepare(`
     INSERT INTO messages(channel_id, user_id, content, attachment_url, attachment_name, attachment_type, attachment_size, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(channelId, req.user.id, content, attachmentUrl, attachmentName, attachmentType, attachmentSize, stamp);
+  `).run(channel.id, req.user.id, content, attachmentUrl, attachmentName, attachmentType, attachmentSize, stamp);
 
-  db.prepare("UPDATE channels SET updated_at = ? WHERE id = ?").run(stamp, channelId);
-  markChannelActivity(channelId, req.user.id);
+  db.prepare("UPDATE channels SET updated_at = ? WHERE id = ?").run(stamp, channel.id);
+  markChannelActivity(channel.id, req.user.id);
 
   const message = db.prepare(`
     SELECT
@@ -808,39 +874,143 @@ app.post("/chat-api/channels/:channelId/messages", requireAuth, upload.single("f
     WHERE m.id = ?
   `).get(Number(result.lastInsertRowid));
 
-  const payload = shapeMessage(message);
-  const channelSummary = getChannelSummary(channelId, req.user.id);
-  broadcastToChannel(channelId, {
+  const payload = withMessagePermissions(message, req.user);
+  const channelSummary = getChannelSummary(channel.id, req.user.id);
+  broadcastToChannel(channel.id, {
     type: "messageCreated",
     message: payload,
     channel: channelSummary
   });
-  broadcastPresence(channelId);
-  res.status(201).json({ message: payload, channel: channelSummary });
+  broadcastPresence(channel.id);
+
+  res.status(201).json({
+    message: payload,
+    channel: channelSummary
+  });
+});
+
+app.delete("/chat-api/messages/:messageId", requireAuth, (req, res) => {
+  const message = db.prepare(`
+    SELECT
+      id,
+      channel_id AS channelId,
+      user_id AS userId,
+      attachment_url AS attachmentUrl
+    FROM messages
+    WHERE id = ?
+  `).get(Number(req.params.messageId));
+
+  if (!message) {
+    return res.status(404).json({ error: "Сообщение не найдено." });
+  }
+  if (message.userId !== req.user.id && !req.user.isAdmin) {
+    return res.status(403).json({ error: "Удалять можно только свои сообщения или администратору." });
+  }
+
+  const channel = deleteMessageAndBroadcast(message, req.user);
+  res.json({ ok: true, messageId: message.id, channel });
 });
 
 app.get("/chat-api/users/:userId", requireAuth, (req, res) => {
-  const profile = publicUserProfile(Number(req.params.userId));
-  if (!profile) {
+  const user = publicUserProfile(Number(req.params.userId));
+  if (!user) {
     return res.status(404).json({ error: "Пользователь не найден." });
   }
-  res.json({ user: profile });
+  res.json({ user });
 });
 
 app.patch("/chat-api/me/profile", requireAuth, (req, res) => {
-  const displayName = cleanText(req.body.displayName, 48) || req.user.displayName;
-  const bio = cleanText(req.body.bio, 280);
-  const location = cleanText(req.body.location, 80);
   db.prepare(`
     UPDATE users
     SET display_name = ?, bio = ?, location = ?, last_seen_at = ?
     WHERE id = ?
-  `).run(displayName, bio, location, nowIso(), req.user.id);
+  `).run(
+    cleanText(req.body.displayName, 48) || req.user.displayName,
+    cleanText(req.body.bio, 280),
+    cleanText(req.body.location, 80),
+    nowIso(),
+    req.user.id
+  );
 
-  const profile = publicUserProfile(req.user.id);
   res.json({
-    user: profile,
+    user: publicUserProfile(req.user.id),
     channels: listChannels(req.user.id)
+  });
+});
+
+app.get("/chat-api/admin/overview", requireAdmin, (req, res) => {
+  const users = db.prepare(`
+    SELECT
+      u.id,
+      u.username,
+      u.display_name AS displayName,
+      u.created_at AS createdAt,
+      u.last_login_at AS lastLoginAt,
+      u.last_seen_at AS lastSeenAt,
+      (SELECT COUNT(*) FROM messages m WHERE m.user_id = u.id) AS messageCount,
+      (SELECT COUNT(*) FROM channels c WHERE c.owner_user_id = u.id) AS createdChannelsCount
+    FROM users u
+    ORDER BY u.last_seen_at DESC
+    LIMIT 100
+  `).all().map((user) => ({
+    ...user,
+    isAdmin: isAdminUser(user)
+  }));
+
+  const channels = db.prepare(`
+    SELECT
+      c.id,
+      c.slug,
+      c.name,
+      c.kind,
+      c.description,
+      c.created_at AS createdAt,
+      c.updated_at AS updatedAt,
+      u.display_name AS ownerDisplayName,
+      (SELECT COUNT(*) FROM messages m WHERE m.channel_id = c.id) AS messageCount,
+      (SELECT COUNT(*) FROM channel_members cm WHERE cm.channel_id = c.id) AS memberCount,
+      (SELECT COUNT(*) FROM channel_visits cv WHERE cv.channel_id = c.id) AS visitorCount
+    FROM channels c
+    JOIN users u ON u.id = c.owner_user_id
+    ORDER BY c.updated_at DESC
+    LIMIT 100
+  `).all().map((channel) => ({
+    ...channel,
+    stats: getChannelStats(channel.id)
+  }));
+
+  const recentMessages = enrichMessages(db.prepare(`
+    SELECT
+      m.id,
+      m.channel_id AS channelId,
+      c.name AS channelName,
+      m.content,
+      m.attachment_url AS attachmentUrl,
+      m.attachment_name AS attachmentName,
+      m.attachment_type AS attachmentType,
+      m.attachment_size AS attachmentSize,
+      m.created_at AS createdAt,
+      u.id AS userId,
+      u.username,
+      u.display_name AS displayName
+    FROM messages m
+    JOIN users u ON u.id = m.user_id
+    JOIN channels c ON c.id = m.channel_id
+    ORDER BY m.id DESC
+    LIMIT 200
+  `).all(), req.user);
+
+  res.json({
+    admin: publicUserProfile(req.user.id),
+    stats: {
+      userCount: db.prepare("SELECT COUNT(*) AS count FROM users").get().count,
+      channelCount: db.prepare("SELECT COUNT(*) AS count FROM channels").get().count,
+      messageCount: db.prepare("SELECT COUNT(*) AS count FROM messages").get().count,
+      attachmentCount: db.prepare("SELECT COUNT(*) AS count FROM messages WHERE attachment_url IS NOT NULL").get().count
+    },
+    users,
+    channels,
+    recentMessages
   });
 });
 
@@ -849,7 +1019,7 @@ app.use((err, _req, res, _next) => {
     return res.status(413).json({ error: "Файл слишком большой. Лимит 5 МБ." });
   }
   console.error(err);
-  return res.status(500).json({ error: "Внутренняя ошибка сервера." });
+  res.status(500).json({ error: "Внутренняя ошибка сервера." });
 });
 
 const server = http.createServer(app);
@@ -869,18 +1039,22 @@ server.on("upgrade", (req, socket, head) => {
 
   wss.handleUpgrade(req, socket, head, (ws) => {
     ws.userId = session.userId;
-    wss.emit("connection", ws, req);
+    ws.channelId = null;
+    wss.emit("connection", ws);
   });
 });
 
 wss.on("connection", (ws) => {
-  ws.send(JSON.stringify({ type: "hello", user: publicUserProfile(ws.userId) }));
+  ws.send(JSON.stringify({
+    type: "hello",
+    user: publicUserProfile(ws.userId)
+  }));
 
   ws.on("message", (raw) => {
     let payload;
     try {
       payload = JSON.parse(String(raw));
-    } catch (_error) {
+    } catch {
       return;
     }
 
@@ -888,7 +1062,7 @@ wss.on("connection", (ws) => {
       const channelId = Number(payload.channelId);
       ensureChannelMembership(channelId, ws.userId);
       markChannelActivity(channelId, ws.userId);
-      subscribeSocketToChannel(ws, channelId);
+      subscribeSocket(ws, channelId);
       ws.send(JSON.stringify({
         type: "presence",
         users: getOnlineUsers(channelId),
