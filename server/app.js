@@ -448,8 +448,8 @@ function ensurePersonalChannel(userId, displayName) {
 }
 
 function listChannels(currentUserId, search = "") {
-  const needle = `%${cleanText(search, 80).toLowerCase()}%`;
-  return db.prepare(`
+  const normalizedSearch = cleanText(search, 80).toLowerCase();
+  const channels = db.prepare(`
     SELECT
       c.id,
       c.slug,
@@ -465,7 +465,6 @@ function listChannels(currentUserId, search = "") {
       (SELECT COUNT(*) FROM channel_members cm WHERE cm.channel_id = c.id) AS memberCount
     FROM channels c
     JOIN users u ON u.id = c.owner_user_id
-    WHERE LOWER(c.name) LIKE ? OR LOWER(c.description) LIKE ? OR LOWER(u.display_name) LIKE ?
     ORDER BY
       CASE
         WHEN c.owner_user_id = ? THEN 0
@@ -473,10 +472,23 @@ function listChannels(currentUserId, search = "") {
         ELSE 2
       END,
       c.updated_at DESC
-  `).all(currentUserId, needle, needle, needle, currentUserId, currentUserId).map((channel) => ({
+  `).all(currentUserId, currentUserId, currentUserId).map((channel) => ({
     ...channel,
     stats: getChannelStats(channel.id)
   }));
+
+  if (!normalizedSearch) {
+    return channels;
+  }
+
+  return channels.filter((channel) => {
+    const haystacks = [
+      channel.name,
+      channel.description,
+      channel.ownerDisplayName
+    ];
+    return haystacks.some((value) => String(value || "").toLowerCase().includes(normalizedSearch));
+  });
 }
 
 function listChannelMessages(channelId) {
