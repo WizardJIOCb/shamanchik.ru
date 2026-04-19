@@ -210,39 +210,47 @@ main,
   box-shadow: 0 16px 30px rgba(0, 0, 0, 0.2);
 }
 
-.topbar__links {
-  display: flex;
+.topbar a {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  width: min(100%, var(--content));
-  padding: 8px 10px;
-  border-radius: 999px;
-  background: rgba(8, 12, 12, 0.34);
-  border: 1px solid rgba(248, 210, 150, 0.12);
-  backdrop-filter: blur(10px);
-}
-
-.topbar__links a {
-  padding: 8px 14px;
+  min-height: 42px;
+  padding: 8px 18px;
   font-size: 0.94rem;
   color: var(--muted);
-  transition: color 160ms ease, background-color 160ms ease;
+  border: 1px solid rgba(248, 210, 150, 0.12);
+  border-radius: 999px;
+  background: rgba(8, 12, 12, 0.22);
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
 }
 
-.topbar__links a:hover {
+.topbar a:hover {
   color: var(--text);
   background: rgba(255, 224, 172, 0.08);
-  border-radius: 999px;
+  border-color: rgba(248, 210, 150, 0.24);
+  transform: translateY(-1px);
 }
 
 .hero__inner {
   width: min(840px, 100%);
   margin: auto;
-  padding: 96px 16px 20px;
+  padding: 48px 28px 32px;
   text-align: center;
   position: relative;
   z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(8, 13, 12, 0.7), rgba(8, 13, 12, 0.54)),
+    radial-gradient(circle at top, rgba(255, 203, 126, 0.1), transparent 55%);
+  border: 1px solid rgba(239, 195, 106, 0.22);
+  border-radius: 32px;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 236, 199, 0.12);
+  backdrop-filter: blur(10px);
 }
 
 .hero__eyebrow,
@@ -776,21 +784,17 @@ section {
   }
 
   .topbar {
-    padding: 12px 12px 0;
-  }
-
-  .topbar__links {
-    width: 100%;
-    justify-content: center;
+    gap: 10px;
+    padding: 12px;
     flex-wrap: wrap;
-    border-radius: 24px;
   }
 
   .hero__inner {
     width: 100%;
-    padding-top: 56px;
+    padding: 56px 18px;
     padding-bottom: 56px;
     margin: 0;
+    border-radius: 26px;
   }
 
   .hero__lead {
@@ -799,6 +803,11 @@ section {
 
   .hero__benefits li {
     width: 100%;
+  }
+
+  .topbar a {
+    flex: 1 1 calc(50% - 10px);
+    min-width: 136px;
   }
 
   .ritual-button {

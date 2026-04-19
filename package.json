@@ -4,7 +4,8 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "start": "node server/app.js"
+    "start": "node server/app.js",
+    "check:encoding": "node scripts/check-mojibake.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
