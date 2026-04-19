@@ -562,6 +562,46 @@ textarea:focus {
   gap: 12px;
 }
 
+.admin-user-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(214, 176, 109, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-user-card__main,
+.admin-user-card__stat {
+  min-width: 0;
+}
+
+.admin-user-card__main strong,
+.admin-user-card__stat strong {
+  display: block;
+  color: var(--gold-bright);
+  line-height: 1.35;
+}
+
+.admin-user-card__main span,
+.admin-user-card__stat span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.admin-user-card__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-user-card__stat {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.14);
+  border: 1px solid rgba(214, 176, 109, 0.1);
+}
+
 .admin-table__row {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(110px, 0.8fr) minmax(150px, 1fr) minmax(150px, 1fr);
@@ -885,6 +925,10 @@ textarea:focus {
   }
 
   .admin-table__row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-user-card__stats {
     grid-template-columns: 1fr;
   }
 }

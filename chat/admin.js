@@ -62,18 +62,20 @@ function renderAdminUsers() {
   const users = adminState.overview?.users || [];
   adminDom.users.innerHTML = users.length
     ? users.map((user) => `
-      <article class="admin-table__row admin-table__row--users">
-        <div>
+      <article class="admin-user-card">
+        <div class="admin-user-card__main">
           <strong>${adminEscapeHtml(user.displayName)}</strong>
           <span>@${adminEscapeHtml(user.username)}${user.isAdmin ? " · admin" : ""} · ${user.messageCount} сообщений</span>
         </div>
-        <div>
-          <strong>${adminFormatDate(user.lastLoginAt)}</strong>
-          <span>последний вход</span>
-        </div>
-        <div>
-          <strong>${adminFormatDate(user.createdAt)}</strong>
-          <span>регистрация</span>
+        <div class="admin-user-card__stats">
+          <div class="admin-user-card__stat">
+            <strong>${adminFormatDate(user.lastLoginAt)}</strong>
+            <span>Последний вход</span>
+          </div>
+          <div class="admin-user-card__stat">
+            <strong>${adminFormatDate(user.createdAt)}</strong>
+            <span>Регистрация</span>
+          </div>
         </div>
       </article>
     `).join("")
