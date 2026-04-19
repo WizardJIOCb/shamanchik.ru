@@ -8,6 +8,8 @@ const state = {
   reconnectTimer: null
 };
 
+const REACTION_OPTIONS = ["🍄", "🌿", "🔥", "😀", "😌", "😍", "😎", "😂", "😇", "🤝"];
+
 const dom = {
   authPanel: document.getElementById("auth-panel"),
   authStatus: document.getElementById("auth-status"),
@@ -124,6 +126,12 @@ function removeMessage(messageId) {
   state.messages = state.messages.filter((message) => message.id !== messageId);
 }
 
+function updateMessageReactions(messageId, reactions) {
+  state.messages = state.messages.map((message) => (
+    message.id === messageId ? { ...message, reactions } : message
+  ));
+}
+
 function syncChannelInList(channel) {
   state.channels = state.channels.map((item) => (
     item.id === channel.id ? { ...item, ...channel } : item
@@ -220,6 +228,37 @@ function renderMessages() {
       </button>
     ` : "";
 
+    const reactionTray = REACTION_OPTIONS.map((emoji) => `
+      <button type="button" class="reaction-picker__option" data-message-reaction="${message.id}" data-emoji="${emoji}">
+        ${emoji}
+      </button>
+    `).join("");
+
+    const reactionItems = (message.reactions || []).map((reaction) => `
+      <button
+        type="button"
+        class="reaction-chip ${reaction.reacted ? "is-active" : ""}"
+        data-message-reaction="${message.id}"
+        data-emoji="${reaction.emoji}">
+        <span>${reaction.emoji}</span>
+        <strong>${reaction.count}</strong>
+      </button>
+    `).join("");
+
+    const reactions = `
+      <div class="message-reactions">
+        <div class="reaction-picker">
+          <button type="button" class="ghost-button ghost-button--small reaction-trigger" aria-label="Добавить реакцию">
+            Реакция
+          </button>
+          <div class="reaction-picker__tray">
+            ${reactionTray}
+          </div>
+        </div>
+        ${reactionItems}
+      </div>
+    `;
+
     return `
       <article class="message-card">
         <div class="message-card__meta">
@@ -233,6 +272,7 @@ function renderMessages() {
         </div>
         <div class="message-card__body">${escapeHtml(message.content || "")}</div>
         ${attachment}
+        ${reactions}
       </article>
     `;
   }).join("");
@@ -247,6 +287,16 @@ function renderMessages() {
 
   dom.messagesList.querySelectorAll(".message-attachment img").forEach((image) => {
     image.addEventListener("click", () => openImagePreview(image.currentSrc || image.src));
+  });
+
+  dom.messagesList.querySelectorAll("[data-message-reaction]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        await handleToggleReaction(Number(button.dataset.messageReaction), button.dataset.emoji);
+      } catch (error) {
+        alert(error.message);
+      }
+    });
   });
 
   dom.messagesList.scrollTop = dom.messagesList.scrollHeight;
@@ -355,6 +405,12 @@ function connectSocket() {
         syncChannelInList(payload.channel);
         renderChannelHeader(state.currentChannel);
       }
+      renderMessages();
+      return;
+    }
+
+    if (payload.type === "messageReactionsUpdated" && payload.channelId === state.currentChannel?.id) {
+      updateMessageReactions(payload.messageId, payload.reactions || []);
       renderMessages();
       return;
     }
@@ -487,6 +543,17 @@ async function handleDeleteMessage(messageId) {
     syncChannelInList(response.channel);
     renderChannelHeader(state.currentChannel);
   }
+  renderMessages();
+}
+
+async function handleToggleReaction(messageId, emoji) {
+  const response = await api(`/chat-api/messages/${messageId}/reactions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ emoji })
+  });
+
+  updateMessageReactions(messageId, response.reactions || []);
   renderMessages();
 }
 

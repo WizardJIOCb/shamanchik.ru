@@ -17,6 +17,7 @@ const PORT = Number(process.env.PORT || 3210);
 const SESSION_COOKIE = "shamanchik_chat_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const REACTION_OPTIONS = ["🍄", "🌿", "🔥", "😀", "😌", "😍", "😎", "😂", "😇", "🤝"];
 const ADMIN_USERNAMES = new Set([
   "wizardjiocb",
   "shamanchik008"
@@ -96,6 +97,17 @@ db.exec(`
     attachment_size INTEGER,
     created_at TEXT NOT NULL,
     FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS message_reactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    emoji TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(message_id, user_id, emoji),
+    FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
@@ -513,6 +525,63 @@ function listChannelMessages(channelId) {
   `).all(channelId).reverse();
 }
 
+function getMessageReactionMap(messageIds, viewerId) {
+  if (!messageIds.length) {
+    return new Map();
+  }
+
+  const placeholders = messageIds.map(() => "?").join(", ");
+  const rows = db.prepare(`
+    SELECT
+      message_id AS messageId,
+      emoji,
+      user_id AS userId
+    FROM message_reactions
+    WHERE message_id IN (${placeholders})
+    ORDER BY id ASC
+  `).all(...messageIds);
+
+  const map = new Map();
+  for (const messageId of messageIds) {
+    map.set(messageId, new Map());
+  }
+
+  for (const row of rows) {
+    if (!map.has(row.messageId)) {
+      map.set(row.messageId, new Map());
+    }
+    const bucket = map.get(row.messageId);
+    if (!bucket.has(row.emoji)) {
+      bucket.set(row.emoji, {
+        emoji: row.emoji,
+        count: 0,
+        reacted: false
+      });
+    }
+    const summary = bucket.get(row.emoji);
+    summary.count += 1;
+    if (viewerId && row.userId === viewerId) {
+      summary.reacted = true;
+    }
+  }
+
+  const sorted = new Map();
+  for (const [messageId, reactions] of map.entries()) {
+    const items = [...reactions.values()].sort((left, right) => {
+      const leftIndex = REACTION_OPTIONS.indexOf(left.emoji);
+      const rightIndex = REACTION_OPTIONS.indexOf(right.emoji);
+      return (leftIndex === -1 ? 999 : leftIndex) - (rightIndex === -1 ? 999 : rightIndex);
+    });
+    sorted.set(messageId, items);
+  }
+
+  return sorted;
+}
+
+function getMessageReactions(messageId, viewerId) {
+  return getMessageReactionMap([messageId], viewerId).get(messageId) || [];
+}
+
 function listChannelUsers(channelId) {
   const onlineIds = new Set(getOnlineUsers(channelId).map((user) => user.id));
   return db.prepare(`
@@ -570,12 +639,17 @@ function withMessagePermissions(message, viewer) {
   return {
     ...message,
     hasAttachment: Boolean(message.attachmentUrl),
-    canDelete: Boolean(viewer && (viewer.id === message.userId || isAdminUser(viewer)))
+    canDelete: Boolean(viewer && (viewer.id === message.userId || isAdminUser(viewer))),
+    reactions: Array.isArray(message.reactions) ? message.reactions : []
   };
 }
 
 function enrichMessages(messages, viewer) {
-  return messages.map((message) => withMessagePermissions(message, viewer));
+  const reactionMap = getMessageReactionMap(messages.map((message) => message.id), viewer?.id);
+  return messages.map((message) => withMessagePermissions({
+    ...message,
+    reactions: reactionMap.get(message.id) || []
+  }, viewer));
 }
 
 const channelSubscribers = new Map();
@@ -705,6 +779,65 @@ function deleteChannelAndBroadcast(channelId, actor) {
   return {
     deletedChannelId: channelId,
     channels: listChannels(actor.id)
+  };
+}
+
+function toggleMessageReaction(messageId, emoji, actor) {
+  const normalizedEmoji = String(emoji || "").trim();
+  if (!REACTION_OPTIONS.includes(normalizedEmoji)) {
+    const error = new Error("Недопустимая реакция.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const message = db.prepare(`
+    SELECT
+      id,
+      channel_id AS channelId
+    FROM messages
+    WHERE id = ?
+  `).get(messageId);
+
+  if (!message) {
+    const error = new Error("Сообщение не найдено.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const channel = getChannelWithAutoJoin(message.channelId, actor.id);
+  if (!channel) {
+    const error = new Error("Канал не найден.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const existing = db.prepare(`
+    SELECT id
+    FROM message_reactions
+    WHERE message_id = ? AND user_id = ? AND emoji = ?
+  `).get(messageId, actor.id, normalizedEmoji);
+
+  if (existing) {
+    db.prepare("DELETE FROM message_reactions WHERE id = ?").run(existing.id);
+  } else {
+    db.prepare(`
+      INSERT INTO message_reactions(message_id, user_id, emoji, created_at)
+      VALUES (?, ?, ?, ?)
+    `).run(messageId, actor.id, normalizedEmoji, nowIso());
+  }
+
+  const reactions = getMessageReactions(messageId, actor.id);
+  broadcastToChannel(message.channelId, {
+    type: "messageReactionsUpdated",
+    messageId,
+    channelId: message.channelId,
+    reactions
+  });
+
+  return {
+    messageId,
+    channel,
+    reactions
   };
 }
 
@@ -955,6 +1088,7 @@ app.post("/chat-api/channels/:channelId/messages", requireAuth, upload.single("f
   `).get(Number(result.lastInsertRowid));
 
   const payload = withMessagePermissions(message, req.user);
+  payload.reactions = [];
   const channelSummary = getChannelSummary(channel.id, req.user.id);
   broadcastToChannel(channel.id, {
     type: "messageCreated",
@@ -989,6 +1123,23 @@ app.delete("/chat-api/messages/:messageId", requireAuth, (req, res) => {
 
   const channel = deleteMessageAndBroadcast(message, req.user);
   res.json({ ok: true, messageId: message.id, channel });
+});
+
+app.post("/chat-api/messages/:messageId/reactions", requireAuth, (req, res, next) => {
+  try {
+    const result = toggleMessageReaction(Number(req.params.messageId), req.body.emoji, req.user);
+    res.json({
+      ok: true,
+      messageId: result.messageId,
+      reactions: result.reactions,
+      channel: result.channel
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
+    return next(error);
+  }
 });
 
 app.get("/chat-api/users/:userId", requireAuth, (req, res) => {
