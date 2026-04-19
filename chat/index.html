@@ -114,13 +114,17 @@
                 <span id="file-name" class="file-name">Файл не выбран</span>
               </div>
               <div class="emoji-tray is-hidden" id="emoji-tray">
-                <button type="button">🌿</button>
                 <button type="button">🍄</button>
+                <button type="button">🌿</button>
                 <button type="button">🔥</button>
-                <button type="button">✨</button>
-                <button type="button">🕯️</button>
-                <button type="button">🌙</button>
-                <button type="button">💬</button>
+                <button type="button">😀</button>
+                <button type="button">😌</button>
+                <button type="button">😍</button>
+                <button type="button">🤔</button>
+                <button type="button">😎</button>
+                <button type="button">🥹</button>
+                <button type="button">😂</button>
+                <button type="button">😇</button>
                 <button type="button">🤝</button>
               </div>
               <textarea id="message-content" name="content" rows="3" maxlength="5000" placeholder="Напишите сообщение, вставьте смайлы или приложите картинку..."></textarea>
@@ -202,6 +206,17 @@
       </label>
       <button type="submit" class="ritual-button ritual-button--gold wide">Сохранить профиль</button>
     </form>
+  </dialog>
+
+  <dialog id="image-preview-dialog" class="dialog-card dialog-card--wide">
+    <div class="dialog-card__header">
+      <h2>Изображение</h2>
+      <button type="button" class="ghost-button" data-close-dialog>Закрыть</button>
+    </div>
+    <div class="image-preview">
+      <img id="image-preview-target" src="" alt="">
+      <p id="image-preview-caption" class="file-name"></p>
+    </div>
   </dialog>
 
   <script src="/chat-assets/chat.js"></script>

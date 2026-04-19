@@ -64,21 +64,45 @@ a {
   background: rgba(4, 8, 7, 0.72);
   backdrop-filter: blur(18px);
   overflow: auto;
+}
+
+.chat-sidebar,
+.messages-list,
+.members-list,
+.members-panel,
+.admin-scroll,
+textarea {
   scrollbar-width: thin;
   scrollbar-color: rgba(214, 176, 109, 0.75) rgba(255, 255, 255, 0.05);
 }
 
-.chat-sidebar::-webkit-scrollbar {
+.chat-sidebar::-webkit-scrollbar,
+.messages-list::-webkit-scrollbar,
+.members-list::-webkit-scrollbar,
+.members-panel::-webkit-scrollbar,
+.admin-scroll::-webkit-scrollbar,
+textarea::-webkit-scrollbar {
   width: 12px;
+  height: 12px;
 }
 
-.chat-sidebar::-webkit-scrollbar-track {
+.chat-sidebar::-webkit-scrollbar-track,
+.messages-list::-webkit-scrollbar-track,
+.members-list::-webkit-scrollbar-track,
+.members-panel::-webkit-scrollbar-track,
+.admin-scroll::-webkit-scrollbar-track,
+textarea::-webkit-scrollbar-track {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18));
   border-radius: 999px;
   box-shadow: inset 0 0 0 1px rgba(214, 176, 109, 0.08);
 }
 
-.chat-sidebar::-webkit-scrollbar-thumb {
+.chat-sidebar::-webkit-scrollbar-thumb,
+.messages-list::-webkit-scrollbar-thumb,
+.members-list::-webkit-scrollbar-thumb,
+.members-panel::-webkit-scrollbar-thumb,
+.admin-scroll::-webkit-scrollbar-thumb,
+textarea::-webkit-scrollbar-thumb {
   background:
     linear-gradient(180deg, rgba(241, 207, 135, 0.95), rgba(214, 176, 109, 0.72));
   border-radius: 999px;
@@ -86,14 +110,22 @@ a {
   box-shadow:
     inset 0 1px 0 rgba(255, 246, 214, 0.3),
     0 0 12px rgba(214, 176, 109, 0.18);
-}
-
-.chat-sidebar::-webkit-scrollbar-thumb:hover {
+.chat-sidebar::-webkit-scrollbar-thumb:hover,
+.messages-list::-webkit-scrollbar-thumb:hover,
+.members-list::-webkit-scrollbar-thumb:hover,
+.members-panel::-webkit-scrollbar-thumb:hover,
+.admin-scroll::-webkit-scrollbar-thumb:hover,
+textarea::-webkit-scrollbar-thumb:hover {
   background:
     linear-gradient(180deg, rgba(247, 220, 151, 0.98), rgba(222, 186, 118, 0.82));
 }
 
-.chat-sidebar::-webkit-scrollbar-corner {
+.chat-sidebar::-webkit-scrollbar-corner,
+.messages-list::-webkit-scrollbar-corner,
+.members-list::-webkit-scrollbar-corner,
+.members-panel::-webkit-scrollbar-corner,
+.admin-scroll::-webkit-scrollbar-corner,
+textarea::-webkit-scrollbar-corner {
   background: transparent;
 }
 
@@ -396,6 +428,13 @@ textarea:focus {
 .message-attachment img {
   max-width: min(340px, 100%);
   border-radius: 14px;
+  cursor: zoom-in;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.message-attachment img:hover {
+  transform: translateY(-1px) scale(1.01);
+  filter: brightness(1.05);
 }
 
 .admin-page {
@@ -656,6 +695,10 @@ textarea:focus {
   padding: 22px;
 }
 
+.dialog-card--wide {
+  width: min(980px, calc(100vw - 32px));
+}
+
 .dialog-card::backdrop {
   background: rgba(0, 0, 0, 0.6);
 }
@@ -663,6 +706,19 @@ textarea:focus {
 .profile-dialog__body {
   display: grid;
   gap: 16px;
+}
+
+.image-preview {
+  display: grid;
+  gap: 14px;
+}
+
+.image-preview img {
+  width: 100%;
+  max-height: min(76vh, 920px);
+  object-fit: contain;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.22);
 }
 
 .profile-stats {

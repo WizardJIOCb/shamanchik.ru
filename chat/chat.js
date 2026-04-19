@@ -46,7 +46,10 @@ const dom = {
   createChannelDialog: document.getElementById("create-channel-dialog"),
   createChannelForm: document.getElementById("create-channel-form"),
   editProfileDialog: document.getElementById("edit-profile-dialog"),
-  editProfileForm: document.getElementById("edit-profile-form")
+  editProfileForm: document.getElementById("edit-profile-form"),
+  imagePreviewDialog: document.getElementById("image-preview-dialog"),
+  imagePreviewTarget: document.getElementById("image-preview-target"),
+  imagePreviewCaption: document.getElementById("image-preview-caption")
 };
 
 async function api(url, options = {}) {
@@ -230,6 +233,10 @@ function renderMessages() {
 
   dom.messagesList.querySelectorAll("[data-message-id]").forEach((button) => {
     button.addEventListener("click", () => handleDeleteMessage(Number(button.dataset.messageId)));
+  });
+
+  dom.messagesList.querySelectorAll(".message-attachment img").forEach((image) => {
+    image.addEventListener("click", () => openImagePreview(image.currentSrc || image.src, image.alt));
   });
 
   dom.messagesList.scrollTop = dom.messagesList.scrollHeight;
@@ -434,6 +441,16 @@ async function handleDeleteMessage(messageId) {
     renderChannelHeader(state.currentChannel);
   }
   renderMessages();
+}
+
+function openImagePreview(src, caption) {
+  if (!dom.imagePreviewDialog || !dom.imagePreviewTarget) {
+    return;
+  }
+  dom.imagePreviewTarget.src = src;
+  dom.imagePreviewTarget.alt = caption || "Изображение из чата";
+  dom.imagePreviewCaption.textContent = caption || "Изображение из чата";
+  dom.imagePreviewDialog.showModal();
 }
 
 document.querySelectorAll("[data-auth-tab]").forEach((button) => {
