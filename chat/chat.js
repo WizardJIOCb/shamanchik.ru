@@ -1,4 +1,4 @@
-const state = {
+﻿const state = {
   me: null,
   channels: [],
   currentChannel: null,
@@ -60,7 +60,7 @@ async function api(url, options = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || "Ошибка запроса.");
+    throw new Error(data.error || "РћС€РёР±РєР° Р·Р°РїСЂРѕСЃР°.");
   }
   return data;
 }
@@ -72,7 +72,7 @@ function setStatus(message, isError = false) {
 
 function formatDate(value) {
   if (!value) {
-    return "—";
+    return "вЂ”";
   }
   return new Intl.DateTimeFormat("ru-RU", {
     dateStyle: "medium",
@@ -153,7 +153,7 @@ function renderSelf() {
 
 function renderChannels() {
   if (!state.channels.length) {
-    dom.channelList.innerHTML = `<div class="empty-state"><p>Каналов пока нет. Создайте первый.</p></div>`;
+    dom.channelList.innerHTML = `<div class="empty-state"><p>РљР°РЅР°Р»РѕРІ РїРѕРєР° РЅРµС‚. РЎРѕР·РґР°Р№С‚Рµ РїРµСЂРІС‹Р№.</p></div>`;
     return;
   }
 
@@ -161,16 +161,16 @@ function renderChannels() {
     <article class="channel-card ${state.currentChannel?.id === channel.id ? "is-active" : ""}" data-channel-id="${channel.id}">
       <div class="channel-card__row">
         <strong>${escapeHtml(channel.name)}</strong>
-        <span class="badge">${channel.kind === "personal" ? "Личный" : "Общий"}</span>
+        <span class="badge">${channel.kind === "personal" ? "Р›РёС‡РЅС‹Р№" : "РћР±С‰РёР№"}</span>
       </div>
-      <p>${escapeHtml(channel.description || "Без описания.")}</p>
+      <p>${escapeHtml(channel.description || "Р‘РµР· РѕРїРёСЃР°РЅРёСЏ.")}</p>
       <div class="channel-card__row channel-card__meta">
         <span>${escapeHtml(channel.ownerDisplayName)}</span>
         <span>${channel.stats.onlineCount} online</span>
       </div>
       <div class="channel-card__row channel-card__meta">
-        <span>${channel.messageCount} сообщений</span>
-        <span>${channel.stats.visitorCount} были здесь</span>
+        <span>${channel.messageCount} СЃРѕРѕР±С‰РµРЅРёР№</span>
+        <span>${channel.stats.visitorCount} Р±С‹Р»Рё Р·РґРµСЃСЊ</span>
       </div>
     </article>
   `).join("");
@@ -181,8 +181,8 @@ function renderChannels() {
 }
 
 function renderChannelHeader(channel) {
-  dom.channelTitle.textContent = channel?.name || "Выберите канал";
-  dom.channelDescription.textContent = channel?.description || "После входа откроется список каналов, личная комната и поиск по общему каталогу обсуждений.";
+  dom.channelTitle.textContent = channel?.name || "Р’С‹Р±РµСЂРёС‚Рµ РєР°РЅР°Р»";
+  dom.channelDescription.textContent = channel?.description || "РџРѕСЃР»Рµ РІС…РѕРґР° РѕС‚РєСЂРѕРµС‚СЃСЏ СЃРїРёСЃРѕРє РєР°РЅР°Р»РѕРІ, Р»РёС‡РЅР°СЏ РєРѕРјРЅР°С‚Р° Рё РїРѕРёСЃРє РїРѕ РѕР±С‰РµРјСѓ РєР°С‚Р°Р»РѕРіСѓ РѕР±СЃСѓР¶РґРµРЅРёР№.";
   dom.statOnline.textContent = channel?.stats?.onlineCount ?? 0;
   dom.statVisitors.textContent = channel?.stats?.visitorCount ?? 0;
   dom.statDau.textContent = channel ? `${channel.stats.dau} / ${channel.stats.wau} / ${channel.stats.mau}` : "0 / 0 / 0";
@@ -190,7 +190,7 @@ function renderChannelHeader(channel) {
 
 function renderMessages() {
   if (!state.currentChannel) {
-    dom.messagesList.innerHTML = `<div class="empty-state"><h2>Чат ждёт подключения</h2><p>Выберите канал, чтобы увидеть сообщения, онлайн-пользователей и статистику.</p></div>`;
+    dom.messagesList.innerHTML = `<div class="empty-state"><h2>Р§Р°С‚ Р¶РґС‘С‚ РїРѕРґРєР»СЋС‡РµРЅРёСЏ</h2><p>Р’С‹Р±РµСЂРёС‚Рµ РєР°РЅР°Р», С‡С‚РѕР±С‹ СѓРІРёРґРµС‚СЊ СЃРѕРѕР±С‰РµРЅРёСЏ, РѕРЅР»Р°Р№РЅ-РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ Рё СЃС‚Р°С‚РёСЃС‚РёРєСѓ.</p></div>`;
     dom.messageForm.classList.add("is-hidden");
     return;
   }
@@ -198,21 +198,22 @@ function renderMessages() {
   dom.messageForm.classList.remove("is-hidden");
 
   if (!state.messages.length) {
-    dom.messagesList.innerHTML = `<div class="empty-state"><h2>Пока тихо</h2><p>Начните разговор, прикрепите файл или откройте личный канал для своих тем.</p></div>`;
+    dom.messagesList.innerHTML = `<div class="empty-state"><h2>РџРѕРєР° С‚РёС…Рѕ</h2><p>РќР°С‡РЅРёС‚Рµ СЂР°Р·РіРѕРІРѕСЂ, РїСЂРёРєСЂРµРїРёС‚Рµ С„Р°Р№Р» РёР»Рё РѕС‚РєСЂРѕР№С‚Рµ Р»РёС‡РЅС‹Р№ РєР°РЅР°Р» РґР»СЏ СЃРІРѕРёС… С‚РµРј.</p></div>`;
     return;
   }
 
   dom.messagesList.innerHTML = state.messages.map((message) => {
+    const isImage = message.attachmentType?.startsWith("image/");
     const attachment = message.hasAttachment ? `
       <div class="message-attachment">
-        ${message.attachmentType?.startsWith("image/") ? `<img src="${message.attachmentUrl}" alt="${escapeHtml(message.attachmentName || "attachment")}">` : ""}
-        <a href="${message.attachmentUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(message.attachmentName || "Скачать файл")}</a>
+        ${isImage ? `<img src="${message.attachmentUrl}" alt="??????????? ?? ????">` : ""}
+        ${isImage ? "" : `<a href="${message.attachmentUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(message.attachmentName || "??????? ????")}</a>`}
       </div>
     ` : "";
 
     const actions = message.canDelete ? `
       <button type="button" class="ghost-button ghost-button--small message-delete-button" data-message-id="${message.id}">
-        Удалить
+        РЈРґР°Р»РёС‚СЊ
       </button>
     ` : "";
 
@@ -250,11 +251,11 @@ function renderMessages() {
 
 function renderMembers() {
   dom.membersCount.textContent = state.members.length
-    ? formatCount(state.members.length, "участник", "участника", "участников")
-    : "0 участников";
+    ? formatCount(state.members.length, "СѓС‡Р°СЃС‚РЅРёРє", "СѓС‡Р°СЃС‚РЅРёРєР°", "СѓС‡Р°СЃС‚РЅРёРєРѕРІ")
+    : "0 СѓС‡Р°СЃС‚РЅРёРєРѕРІ";
 
   if (!state.members.length) {
-    dom.membersList.innerHTML = `<div class="empty-state"><p>Список участников появится после открытия канала.</p></div>`;
+    dom.membersList.innerHTML = `<div class="empty-state"><p>РЎРїРёСЃРѕРє СѓС‡Р°СЃС‚РЅРёРєРѕРІ РїРѕСЏРІРёС‚СЃСЏ РїРѕСЃР»Рµ РѕС‚РєСЂС‹С‚РёСЏ РєР°РЅР°Р»Р°.</p></div>`;
     return;
   }
 
@@ -262,12 +263,12 @@ function renderMembers() {
     <article class="member-card ${member.isOnline ? "is-online" : ""}" data-user-id="${member.id}">
       <div class="member-card__row">
         <strong>${escapeHtml(member.displayName)}</strong>
-        <span class="member-status">${member.isOnline ? "в сети" : "не в сети"}</span>
+        <span class="member-status">${member.isOnline ? "РІ СЃРµС‚Рё" : "РЅРµ РІ СЃРµС‚Рё"}</span>
       </div>
-      <p class="member-card__meta">@${escapeHtml(member.username)}${member.isAdmin ? " · admin" : ""}</p>
+      <p class="member-card__meta">@${escapeHtml(member.username)}${member.isAdmin ? " В· admin" : ""}</p>
       <div class="member-card__row member-card__meta">
-        <span>${member.messageCount} сообщений</span>
-        <span>${member.createdChannelsCount} каналов</span>
+        <span>${member.messageCount} СЃРѕРѕР±С‰РµРЅРёР№</span>
+        <span>${member.createdChannelsCount} РєР°РЅР°Р»РѕРІ</span>
       </div>
     </article>
   `).join("");
@@ -409,17 +410,17 @@ async function openProfile(userId) {
   dom.profileDialogBody.innerHTML = `
     <section class="profile-summary">
       <h3>${escapeHtml(user.displayName)}</h3>
-      <p>@${escapeHtml(user.username)}${user.isAdmin ? " · администратор" : ""}</p>
-      <p>${escapeHtml(user.bio || "Пользователь пока ничего не рассказал о себе.")}</p>
-      <p>${user.location ? `Локация: ${escapeHtml(user.location)}` : "Локация не указана."}</p>
+      <p>@${escapeHtml(user.username)}${user.isAdmin ? " В· Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ" : ""}</p>
+      <p>${escapeHtml(user.bio || "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РїРѕРєР° РЅРёС‡РµРіРѕ РЅРµ СЂР°СЃСЃРєР°Р·Р°Р» Рѕ СЃРµР±Рµ.")}</p>
+      <p>${user.location ? `Р›РѕРєР°С†РёСЏ: ${escapeHtml(user.location)}` : "Р›РѕРєР°С†РёСЏ РЅРµ СѓРєР°Р·Р°РЅР°."}</p>
     </section>
     <section class="profile-stats">
-      <article class="profile-stat"><span>Дата регистрации</span><strong>${formatDate(user.createdAt)}</strong></article>
-      <article class="profile-stat"><span>Последний вход</span><strong>${formatDate(user.lastLoginAt)}</strong></article>
-      <article class="profile-stat"><span>Последняя активность</span><strong>${formatDate(user.lastSeenAt)}</strong></article>
-      <article class="profile-stat"><span>Сообщений</span><strong>${user.messageCount}</strong></article>
-      <article class="profile-stat"><span>Создано каналов</span><strong>${user.createdChannelsCount}</strong></article>
-      <article class="profile-stat"><span>Состоит в чатах</span><strong>${user.joinedChannelsCount}</strong></article>
+      <article class="profile-stat"><span>Р”Р°С‚Р° СЂРµРіРёСЃС‚СЂР°С†РёРё</span><strong>${formatDate(user.createdAt)}</strong></article>
+      <article class="profile-stat"><span>РџРѕСЃР»РµРґРЅРёР№ РІС…РѕРґ</span><strong>${formatDate(user.lastLoginAt)}</strong></article>
+      <article class="profile-stat"><span>РџРѕСЃР»РµРґРЅСЏСЏ Р°РєС‚РёРІРЅРѕСЃС‚СЊ</span><strong>${formatDate(user.lastSeenAt)}</strong></article>
+      <article class="profile-stat"><span>РЎРѕРѕР±С‰РµРЅРёР№</span><strong>${user.messageCount}</strong></article>
+      <article class="profile-stat"><span>РЎРѕР·РґР°РЅРѕ РєР°РЅР°Р»РѕРІ</span><strong>${user.createdChannelsCount}</strong></article>
+      <article class="profile-stat"><span>РЎРѕСЃС‚РѕРёС‚ РІ С‡Р°С‚Р°С…</span><strong>${user.joinedChannelsCount}</strong></article>
     </section>
   `;
   dom.profileDialog.showModal();
@@ -431,8 +432,8 @@ async function handleDeleteMessage(messageId) {
     return;
   }
   const confirmText = state.me?.isAdmin && message.userId !== state.me.id
-    ? "Удалить чужое сообщение как администратор?"
-    : "Удалить сообщение?";
+    ? "РЈРґР°Р»РёС‚СЊ С‡СѓР¶РѕРµ СЃРѕРѕР±С‰РµРЅРёРµ РєР°Рє Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ?"
+    : "РЈРґР°Р»РёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ?";
   if (!window.confirm(confirmText)) {
     return;
   }
@@ -454,8 +455,8 @@ function openImagePreview(src, caption) {
     return;
   }
   dom.imagePreviewTarget.src = src;
-  dom.imagePreviewTarget.alt = caption || "Изображение из чата";
-  dom.imagePreviewCaption.textContent = caption || "Изображение из чата";
+  dom.imagePreviewTarget.alt = caption || "РР·РѕР±СЂР°Р¶РµРЅРёРµ РёР· С‡Р°С‚Р°";
+  dom.imagePreviewCaption.textContent = caption || "РР·РѕР±СЂР°Р¶РµРЅРёРµ РёР· С‡Р°С‚Р°";
   dom.imagePreviewDialog.showModal();
 }
 
@@ -474,7 +475,7 @@ dom.registerForm.addEventListener("submit", async (event) => {
     });
     state.me = data.user;
     state.channels = data.channels;
-    setStatus("Аккаунт создан. Открываю ваш чат.");
+    setStatus("РђРєРєР°СѓРЅС‚ СЃРѕР·РґР°РЅ. РћС‚РєСЂС‹РІР°СЋ РІР°С€ С‡Р°С‚.");
     renderSelf();
     renderChannels();
     connectSocket();
@@ -498,7 +499,7 @@ dom.loginForm.addEventListener("submit", async (event) => {
     });
     state.me = data.user;
     state.channels = data.channels;
-    setStatus("Вход выполнен.");
+    setStatus("Р’С…РѕРґ РІС‹РїРѕР»РЅРµРЅ.");
     renderSelf();
     renderChannels();
     connectSocket();
@@ -523,7 +524,7 @@ dom.logoutButton.addEventListener("click", async () => {
   renderChannelHeader(null);
   renderMessages();
   renderMembers();
-  setStatus("Вы вышли из чата.");
+  setStatus("Р’С‹ РІС‹С€Р»Рё РёР· С‡Р°С‚Р°.");
 });
 
 dom.channelSearch.addEventListener("input", async () => {
@@ -536,7 +537,7 @@ dom.channelSearch.addEventListener("input", async () => {
 });
 
 dom.messageFile.addEventListener("change", () => {
-  dom.fileName.textContent = dom.messageFile.files[0]?.name || "Файл не выбран";
+  dom.fileName.textContent = dom.messageFile.files[0]?.name || "Р¤Р°Р№Р» РЅРµ РІС‹Р±СЂР°РЅ";
 });
 
 dom.emojiButton.addEventListener("click", () => {
@@ -576,7 +577,7 @@ dom.messageForm.addEventListener("submit", async (event) => {
     renderMessages();
     dom.messageContent.value = "";
     dom.messageFile.value = "";
-    dom.fileName.textContent = "Файл не выбран";
+    dom.fileName.textContent = "Р¤Р°Р№Р» РЅРµ РІС‹Р±СЂР°РЅ";
     dom.emojiTray.classList.add("is-hidden");
   } catch (error) {
     alert(error.message);
