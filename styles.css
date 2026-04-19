@@ -124,7 +124,7 @@ main,
 .hero {
   position: relative;
   min-height: 0;
-  padding: 24px 0 80px;
+  padding: 108px 0 80px;
   display: grid;
   grid-template-rows: auto 1fr;
   align-items: start;
@@ -193,30 +193,32 @@ main,
 }
 
 .topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   gap: 20px;
-  padding: 4px 18px 0;
-}
-
-.brand {
-  width: 102px;
-  padding: 4px;
-}
-
-.brand img {
   width: 100%;
-  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.4));
+  padding: 14px 24px;
+  background: linear-gradient(180deg, rgba(7, 11, 10, 0.9), rgba(7, 11, 10, 0.62));
+  border-bottom: 1px solid rgba(248, 210, 150, 0.1);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.2);
 }
 
 .topbar__links {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  padding: 8px;
+  width: min(100%, var(--content));
+  padding: 8px 10px;
   border-radius: 999px;
-  background: rgba(8, 12, 12, 0.42);
+  background: rgba(8, 12, 12, 0.34);
   border: 1px solid rgba(248, 210, 150, 0.12);
   backdrop-filter: blur(10px);
 }
@@ -237,7 +239,7 @@ main,
 .hero__inner {
   width: min(840px, 100%);
   margin: auto;
-  padding: 84px 16px 20px;
+  padding: 96px 16px 20px;
   text-align: center;
   position: relative;
   z-index: 1;
@@ -760,7 +762,7 @@ section {
     width: 100%;
     min-height: auto;
     display: block;
-    padding-top: 14px;
+    padding-top: 92px;
     padding-bottom: 32px;
   }
 
@@ -774,9 +776,7 @@ section {
   }
 
   .topbar {
-    flex-direction: column;
-    justify-content: center;
-    padding: 0;
+    padding: 12px 12px 0;
   }
 
   .topbar__links {
@@ -788,7 +788,7 @@ section {
 
   .hero__inner {
     width: 100%;
-    padding-top: 44px;
+    padding-top: 56px;
     padding-bottom: 56px;
     margin: 0;
   }
