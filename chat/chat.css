@@ -112,12 +112,11 @@ textarea::-webkit-scrollbar-track {
 .members-panel::-webkit-scrollbar-thumb,
 .admin-scroll::-webkit-scrollbar-thumb,
 textarea::-webkit-scrollbar-thumb {
-  background: rgba(241, 207, 135, 0.96);
+  min-height: 42px;
+  background: #f1cf87;
   border-radius: 999px;
-  border: 2px solid rgba(7, 12, 11, 0.96);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 246, 214, 0.42),
-    0 0 10px rgba(214, 176, 109, 0.24);
+  border: 1px solid rgba(31, 23, 11, 0.88);
+  box-shadow: 0 0 8px rgba(214, 176, 109, 0.18);
 }
 
 .chat-sidebar::-webkit-scrollbar-thumb:hover,
@@ -126,7 +125,7 @@ textarea::-webkit-scrollbar-thumb {
 .members-panel::-webkit-scrollbar-thumb:hover,
 .admin-scroll::-webkit-scrollbar-thumb:hover,
 textarea::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 228, 168, 1);
+  background: #ffe4a8;
 }
 
 .chat-sidebar::-webkit-scrollbar-corner,
