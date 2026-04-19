@@ -57,6 +57,9 @@ a {
 }
 
 .chat-sidebar {
+  display: grid;
+  align-content: start;
+  gap: 20px;
   border-right: 1px solid rgba(214, 176, 109, 0.12);
   background: rgba(4, 8, 7, 0.72);
   backdrop-filter: blur(18px);
@@ -72,7 +75,7 @@ a {
 }
 
 .chat-brand {
-  margin-bottom: 24px;
+  margin-bottom: 0;
 }
 
 .chat-brand__home {
@@ -203,11 +206,15 @@ textarea:focus {
   gap: 12px;
 }
 
-.channel-list,
 .members-list {
   margin-top: 16px;
   max-height: calc(100vh - 390px);
   overflow: auto;
+  padding-right: 4px;
+}
+
+.channel-list {
+  margin-top: 16px;
   padding-right: 4px;
 }
 
