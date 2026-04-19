@@ -659,4 +659,12 @@ document.querySelectorAll("[data-close-dialog]").forEach((button) => {
   });
 });
 
+document.querySelectorAll("dialog").forEach((dialog) => {
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) {
+      dialog.close();
+    }
+  });
+});
+
 bootstrap();
