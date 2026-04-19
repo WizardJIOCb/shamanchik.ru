@@ -544,19 +544,24 @@ textarea:focus {
 
 .admin-table__row {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr) minmax(0, 1.1fr) auto;
-  gap: 12px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1.5fr) minmax(110px, 0.8fr) minmax(150px, 1fr) minmax(150px, 1fr);
+  gap: 14px;
+  align-items: start;
   padding: 16px 18px;
   border-radius: 20px;
   border: 1px solid rgba(214, 176, 109, 0.12);
   background: rgba(255, 255, 255, 0.03);
 }
 
+.admin-table__row > div {
+  min-width: 0;
+}
+
 .admin-table__row strong,
 .admin-message__header strong {
   display: block;
   color: var(--gold-bright);
+  line-height: 1.35;
 }
 
 .admin-table__row span,
@@ -564,6 +569,9 @@ textarea:focus {
 .admin-empty,
 .admin-hint {
   color: var(--muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .admin-message-list,
