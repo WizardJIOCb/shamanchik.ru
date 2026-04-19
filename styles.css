@@ -25,6 +25,8 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
   scrollbar-width: auto;
   scrollbar-color: rgba(241, 207, 135, 0.96) rgba(7, 12, 11, 0.92);
 }
@@ -59,7 +61,7 @@ textarea::-webkit-scrollbar-track {
 html::-webkit-scrollbar-thumb,
 body::-webkit-scrollbar-thumb,
 textarea::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(248, 220, 157, 0.98), rgba(214, 176, 109, 0.9));
+  background: rgba(241, 207, 135, 0.96);
   border-radius: 999px;
   border: 2px solid rgba(7, 12, 11, 0.96);
   box-shadow:
@@ -70,7 +72,7 @@ textarea::-webkit-scrollbar-thumb {
 html::-webkit-scrollbar-thumb:hover,
 body::-webkit-scrollbar-thumb:hover,
 textarea::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(255, 228, 168, 1), rgba(228, 191, 123, 0.94));
+  background: rgba(255, 228, 168, 1);
 }
 
 html::-webkit-scrollbar-corner,

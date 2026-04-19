@@ -68,7 +68,8 @@ a {
   border-right: 1px solid rgba(214, 176, 109, 0.12);
   background: rgba(4, 8, 7, 0.72);
   backdrop-filter: blur(18px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .chat-sidebar,
@@ -77,6 +78,7 @@ a {
 .members-panel,
 .admin-scroll,
 textarea {
+  scrollbar-gutter: stable;
   scrollbar-width: auto;
   scrollbar-color: rgba(241, 207, 135, 0.96) rgba(7, 12, 11, 0.92);
 }
@@ -110,8 +112,7 @@ textarea::-webkit-scrollbar-track {
 .members-panel::-webkit-scrollbar-thumb,
 .admin-scroll::-webkit-scrollbar-thumb,
 textarea::-webkit-scrollbar-thumb {
-  background:
-    linear-gradient(180deg, rgba(248, 220, 157, 0.98), rgba(214, 176, 109, 0.9));
+  background: rgba(241, 207, 135, 0.96);
   border-radius: 999px;
   border: 2px solid rgba(7, 12, 11, 0.96);
   box-shadow:
@@ -125,8 +126,7 @@ textarea::-webkit-scrollbar-thumb {
 .members-panel::-webkit-scrollbar-thumb:hover,
 .admin-scroll::-webkit-scrollbar-thumb:hover,
 textarea::-webkit-scrollbar-thumb:hover {
-  background:
-    linear-gradient(180deg, rgba(255, 228, 168, 1), rgba(228, 191, 123, 0.94));
+  background: rgba(255, 228, 168, 1);
 }
 
 .chat-sidebar::-webkit-scrollbar-corner,
