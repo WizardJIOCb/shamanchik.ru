@@ -582,6 +582,8 @@ textarea:focus {
   display: block;
   color: var(--gold-bright);
   line-height: 1.35;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .admin-table__row span,
@@ -592,6 +594,11 @@ textarea:focus {
   line-height: 1.45;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.admin-table__row span {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .admin-message-list,
