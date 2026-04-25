@@ -741,6 +741,100 @@ section {
   color: #f7d69c;
 }
 
+.footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 14px 20px;
+}
+
+.legal-hero {
+  position: relative;
+  width: 100%;
+  padding: 108px 0 40px;
+}
+
+.legal-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(6, 12, 13, 0.2), rgba(6, 8, 7, 0.82)),
+    url("images/background.jpg") center center / cover no-repeat;
+  box-shadow: var(--shadow);
+  z-index: -1;
+}
+
+.legal-hero__inner,
+.legal-main,
+.footer {
+  width: min(calc(100% - 32px), var(--content));
+  margin: 0 auto;
+}
+
+.legal-hero__inner {
+  padding: 48px 34px 28px;
+}
+
+.legal-hero__lead {
+  width: min(760px, 100%);
+  margin: 18px 0 0;
+  color: rgba(252, 241, 221, 0.9);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  line-height: 1.7;
+}
+
+.legal-main {
+  padding: 26px 0 32px;
+}
+
+.legal-card {
+  margin-bottom: 24px;
+}
+
+.legal-card p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.legal-note {
+  padding: 18px 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(239, 195, 106, 0.28);
+  background: rgba(255, 206, 122, 0.08);
+  color: #f7e3bb;
+  line-height: 1.7;
+}
+
+.legal-note strong {
+  color: #ffdba0;
+}
+
+.legal-details {
+  margin: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.legal-details div {
+  padding: 16px 0 0;
+  border-top: 1px solid rgba(235, 191, 112, 0.14);
+}
+
+.legal-details dt {
+  margin-bottom: 6px;
+  color: #f7d69c;
+  font-weight: 600;
+}
+
+.legal-details dd {
+  margin: 0;
+  color: var(--text);
+  font-family: "Cormorant Garamond", serif;
+  font-size: clamp(1.3rem, 2vw, 1.8rem);
+}
+
 .reveal {
   opacity: 0;
   transform: translateY(24px);
@@ -846,6 +940,24 @@ section {
   .footer {
     flex-direction: column;
     text-align: center;
+  }
+
+  .footer__links {
+    justify-content: center;
+  }
+
+  .legal-hero {
+    padding-top: 92px;
+  }
+
+  .legal-hero__inner,
+  .legal-main,
+  .footer {
+    width: min(calc(100% - 20px), var(--content));
+  }
+
+  .legal-hero__inner {
+    padding: 42px 22px 20px;
   }
 }
 

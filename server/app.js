@@ -10,6 +10,15 @@ const { WebSocketServer, WebSocket } = require("ws");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 const CHAT_DIR = path.join(ROOT_DIR, "chat");
+const STATIC_PAGES = new Map([
+  ["/", "index.html"],
+  ["/payment", "payment.html"],
+  ["/payment.html", "payment.html"],
+  ["/offer", "offer.html"],
+  ["/offer.html", "offer.html"],
+  ["/contacts", "contacts.html"],
+  ["/contacts.html", "contacts.html"]
+]);
 const STORAGE_DIR = process.env.CHAT_STORAGE_DIR || path.join(ROOT_DIR, "storage");
 const DB_PATH = process.env.CHAT_DB_PATH || path.join(STORAGE_DIR, "chat.sqlite");
 const UPLOAD_DIR = process.env.CHAT_UPLOAD_DIR || path.join(STORAGE_DIR, "uploads");
@@ -125,6 +134,9 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(ROOT_DIR, {
+  extensions: ["html"]
+}));
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -843,6 +855,12 @@ function toggleMessageReaction(messageId, emoji, actor) {
 
 app.use("/chat-assets", express.static(CHAT_DIR));
 app.use("/chat-uploads", express.static(UPLOAD_DIR));
+
+for (const [routePath, fileName] of STATIC_PAGES.entries()) {
+  app.get(routePath, (_req, res) => {
+    res.sendFile(path.join(ROOT_DIR, fileName));
+  });
+}
 
 app.get(["/chat", "/chat/"], (_req, res) => {
   res.sendFile(path.join(CHAT_DIR, "index.html"));

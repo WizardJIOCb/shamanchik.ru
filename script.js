@@ -1,5 +1,18 @@
 const revealItems = document.querySelectorAll(".reveal");
 const whatsappPhone = "79871355371";
+const footer = document.querySelector(".footer");
+
+if (footer) {
+  footer.innerHTML = `
+    <p>&copy; 2026 Шаманчик</p>
+    <nav class="footer__links" aria-label="Документы и контакты">
+      <a href="/payment.html">Оплата и тарифы</a>
+      <a href="/offer.html">Оферта</a>
+      <a href="/contacts.html">Контакты и реквизиты</a>
+      <a href="${window.location.pathname === "/" ? "#top" : "/"}">${window.location.pathname === "/" ? "Наверх" : "Главная"}</a>
+    </nav>
+  `;
+}
 
 const revealObserver = new IntersectionObserver((entries) => {
   entries.forEach((entry) => {
