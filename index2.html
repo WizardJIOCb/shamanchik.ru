@@ -684,6 +684,8 @@
     }
 
     .app-promo {
+      position: relative;
+      overflow: hidden;
       min-height: 280px;
       display: grid;
       grid-template-columns: minmax(0, 470px) 1fr;
@@ -693,16 +695,17 @@
     }
 
     .phone-scene {
-      min-height: 260px;
-      position: relative;
+      position: absolute;
+      inset: 0 0 0 50%;
       overflow: hidden;
+      pointer-events: none;
     }
 
     .phone {
       position: absolute;
       right: 14%;
       top: auto;
-      bottom: -30px;
+      bottom: -10px;
       width: 178px;
       height: 316px;
       transform: rotate(-13deg);
@@ -967,13 +970,16 @@
       }
 
       .phone-scene {
-        min-height: 220px;
+        position: relative;
+        inset: auto;
+        min-height: 240px;
+        margin-top: 18px;
       }
 
       .phone {
         right: 50%;
         top: auto;
-        bottom: -34px;
+        bottom: -18px;
         transform: translateX(50%) rotate(-9deg);
       }
 
