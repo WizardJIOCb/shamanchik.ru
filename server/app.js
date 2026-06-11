@@ -39,6 +39,16 @@ const GRAIN_MYCELIUM_PRICE_OPTIONS = [
   { unit: "500 г", price: 3500 },
   { unit: "1000 г", price: 6000 }
 ];
+const CDEK_BASE_URL = process.env.CDEK_BASE_URL || "https://api.cdek.ru/v2";
+const CDEK_ACCOUNT = process.env.CDEK_ACCOUNT || process.env.CDEK_CLIENT_ID || "";
+const CDEK_SECURE_PASSWORD = process.env.CDEK_SECURE_PASSWORD || process.env.CDEK_CLIENT_SECRET || "";
+const YOOKASSA_SHOP_ID = process.env.YOOKASSA_SHOP_ID || "";
+const YOOKASSA_SECRET_KEY = process.env.YOOKASSA_SECRET_KEY || "";
+const YOOKASSA_API_URL = process.env.YOOKASSA_API_URL || "https://api.yookassa.ru/v3";
+const SITE_URL = (process.env.SITE_URL || "https://shamanchik.ru").replace(/\/$/, "");
+const DEFAULT_CDEK_TARIFF_CODE = 136;
+const DEFAULT_PACKAGE = { length: 20, width: 15, height: 10 };
+
 
 fs.mkdirSync(STORAGE_DIR, { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -159,6 +169,34 @@ db.exec(`
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS site_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    public_id TEXT NOT NULL UNIQUE,
+    customer_name TEXT NOT NULL,
+    customer_phone TEXT NOT NULL,
+    customer_email TEXT NOT NULL DEFAULT '',
+    customer_comment TEXT NOT NULL DEFAULT '',
+    items_json TEXT NOT NULL,
+    delivery_json TEXT NOT NULL DEFAULT '{}',
+    subtotal INTEGER NOT NULL DEFAULT 0,
+    delivery_price INTEGER NOT NULL DEFAULT 0,
+    total INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'new',
+    payment_provider TEXT NOT NULL DEFAULT 'yookassa',
+    payment_id TEXT NOT NULL DEFAULT '',
+    payment_url TEXT NOT NULL DEFAULT '',
+    payment_status TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
 `);
 
 function ensureProductSchema() {
@@ -169,6 +207,20 @@ function ensureProductSchema() {
 }
 
 ensureProductSchema();
+function ensureStoreSettings() {
+  const defaults = new Map([
+    ["delivery_enabled", process.env.CDEK_FROM_LOCATION_CODE ? "1" : "0"],
+    ["cdek_from_location_code", process.env.CDEK_FROM_LOCATION_CODE || ""],
+    ["cdek_tariff_code", String(process.env.CDEK_TARIFF_CODE || DEFAULT_CDEK_TARIFF_CODE)],
+    ["payment_enabled", "1"]
+  ]);
+  const insert = db.prepare("INSERT OR IGNORE INTO site_settings(key, value, updated_at) VALUES (?, ?, ?)");
+  const stamp = nowIso();
+  for (const [key, value] of defaults.entries()) {
+    insert.run(key, value, stamp);
+  }
+}
+
 
 const app = express();
 app.set("trust proxy", 1);
@@ -237,6 +289,18 @@ function cleanText(value, limit = 2000) {
 function cleanInteger(value, fallback = 0) {
   const normalized = Number.parseInt(String(value ?? "").replace(/[^\d-]/g, ""), 10);
   return Number.isFinite(normalized) ? normalized : fallback;
+}
+
+function cleanNumber(value, fallback = 0) {
+  const normalized = Number(String(value ?? "").replace(",", ".").replace(/[^\d.-]/g, ""));
+  return Number.isFinite(normalized) ? normalized : fallback;
+}
+
+function boolFromValue(value, fallback = false) {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (value === true || value === 1 || value === "1") return true;
+  const text = String(value).toLowerCase();
+  return text === "true" || text === "yes" || text === "on";
 }
 
 function slugify(value) {
@@ -373,6 +437,37 @@ function listProducts({ includeInactive = false } = {}) {
     ${where}
     ORDER BY sort_order ASC, id ASC
   `).all().map(normalizeProduct);
+}
+
+
+function getSetting(key, fallback = "") {
+  const row = db.prepare("SELECT value FROM site_settings WHERE key = ?").get(key);
+  return row ? row.value : fallback;
+}
+
+function setSetting(key, value) {
+  db.prepare("INSERT INTO site_settings(key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at")
+    .run(key, String(value ?? ""), nowIso());
+}
+
+function storeSettingsPayload({ admin = false } = {}) {
+  const deliveryEnabled = getSetting("delivery_enabled", "1") === "1";
+  const paymentEnabled = getSetting("payment_enabled", "1") === "1";
+  const cdekFromLocationCode = getSetting("cdek_from_location_code", "");
+  const cdekTariffCode = cleanInteger(getSetting("cdek_tariff_code", DEFAULT_CDEK_TARIFF_CODE), DEFAULT_CDEK_TARIFF_CODE);
+  const payload = {
+    deliveryEnabled,
+    paymentEnabled,
+    cdekReady: Boolean(CDEK_ACCOUNT && CDEK_SECURE_PASSWORD && cdekFromLocationCode),
+    yookassaReady: Boolean(YOOKASSA_SHOP_ID && YOOKASSA_SECRET_KEY),
+    cdekTariffCode
+  };
+  if (admin) {
+    payload.cdekFromLocationCode = cdekFromLocationCode;
+    payload.hasCdekCredentials = Boolean(CDEK_ACCOUNT && CDEK_SECURE_PASSWORD);
+    payload.hasYookassaCredentials = Boolean(YOOKASSA_SHOP_ID && YOOKASSA_SECRET_KEY);
+  }
+  return payload;
 }
 
 function getProduct(productId) {
@@ -564,6 +659,205 @@ function ensureGrainMyceliumPrices() {
     }
     update.run(defaultOptions[0].price, defaultOptions[0].unit, optionsJson, stamp, row.id);
   }
+}
+
+
+function parseJsonField(value, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function publicOrder(row) {
+  return {
+    id: row.id,
+    publicId: row.public_id,
+    customerName: row.customer_name,
+    customerPhone: row.customer_phone,
+    customerEmail: row.customer_email,
+    customerComment: row.customer_comment,
+    items: parseJsonField(row.items_json, []),
+    delivery: parseJsonField(row.delivery_json, {}),
+    subtotal: row.subtotal,
+    deliveryPrice: row.delivery_price,
+    total: row.total,
+    status: row.status,
+    paymentProvider: row.payment_provider,
+    paymentId: row.payment_id,
+    paymentUrl: row.payment_url,
+    paymentStatus: row.payment_status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function weightFromUnit(unit) {
+  const text = String(unit || "").toLowerCase();
+  const value = cleanNumber(text, 0);
+  if (!value) return 100;
+  if (text.includes("\u043a\u0433") || text.includes("kg")) return Math.round(value * 1000);
+  return Math.round(value);
+}
+
+function normalizeOrderItems(rawItems) {
+  const items = Array.isArray(rawItems) ? rawItems : [];
+  const normalized = [];
+  for (const raw of items) {
+    const product = getProductBySlug(cleanText(raw.slug, 100));
+    if (!product) continue;
+    const requestedUnit = cleanText(raw.unit, 80) || product.unit;
+    const option = product.priceOptions.find((item) => item.unit === requestedUnit) || product.priceOptions[0] || { unit: product.unit, price: product.price };
+    const quantity = Math.min(99, Math.max(1, cleanInteger(raw.quantity, 1)));
+    const unit = option.unit || product.unit || "\u0448\u0442";
+    const price = Math.max(0, cleanInteger(option.price, product.price));
+    normalized.push({
+      slug: product.slug,
+      title: product.title,
+      unit,
+      quantity,
+      price,
+      amount: price * quantity,
+      weight: weightFromUnit(unit) * quantity
+    });
+  }
+  return normalized;
+}
+
+function orderTotals(items, deliveryPrice = 0) {
+  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+  const delivery = Math.max(0, cleanInteger(deliveryPrice, 0));
+  return { subtotal, deliveryPrice: delivery, total: subtotal + delivery };
+}
+
+function cdekConfigured() {
+  return Boolean(CDEK_ACCOUNT && CDEK_SECURE_PASSWORD);
+}
+
+let cdekTokenCache = { token: "", expiresAt: 0 };
+
+async function cdekToken() {
+  if (!cdekConfigured()) {
+    throw new Error("CDEK credentials are not configured.");
+  }
+  if (cdekTokenCache.token && cdekTokenCache.expiresAt > Date.now() + 60000) {
+    return cdekTokenCache.token;
+  }
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: CDEK_ACCOUNT,
+    client_secret: CDEK_SECURE_PASSWORD
+  });
+  const response = await fetch(`${CDEK_BASE_URL}/oauth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.access_token) {
+    throw new Error(data.message || data.error_description || "CDEK authorization failed.");
+  }
+  cdekTokenCache = {
+    token: data.access_token,
+    expiresAt: Date.now() + Math.max(1, Number(data.expires_in || 3600) - 120) * 1000
+  };
+  return cdekTokenCache.token;
+}
+
+async function cdekFetch(endpoint, options = {}) {
+  const token = await cdekToken();
+  const response = await fetch(`${CDEK_BASE_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {})
+    }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data?.errors?.[0]?.message || data.message || "CDEK request failed.";
+    throw new Error(message);
+  }
+  return data;
+}
+
+function orderPackageFromItems(items) {
+  return {
+    weight: Math.max(100, items.reduce((sum, item) => sum + item.weight, 0)),
+    ...DEFAULT_PACKAGE
+  };
+}
+
+async function calculateCdekDelivery({ cityCode, deliveryPointCode, items }) {
+  const fromLocationCode = cleanInteger(getSetting("cdek_from_location_code", ""), 0);
+  const tariffCode = cleanInteger(getSetting("cdek_tariff_code", DEFAULT_CDEK_TARIFF_CODE), DEFAULT_CDEK_TARIFF_CODE);
+  if (!fromLocationCode) {
+    throw new Error("Set CDEK sender city code in admin settings.");
+  }
+  const toLocationCode = cleanInteger(cityCode, 0);
+  if (!toLocationCode) {
+    throw new Error("Choose delivery city.");
+  }
+  const payload = {
+    tariff_code: tariffCode,
+    from_location: { code: fromLocationCode },
+    to_location: { code: toLocationCode },
+    packages: [orderPackageFromItems(items)]
+  };
+  const result = await cdekFetch("/calculator/tariff", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  return {
+    provider: "cdek",
+    tariffCode,
+    cityCode: toLocationCode,
+    deliveryPointCode: cleanText(deliveryPointCode, 80),
+    price: Math.ceil(cleanNumber(result.delivery_sum, 0)),
+    periodMin: result.period_min || null,
+    periodMax: result.period_max || null,
+    raw: result
+  };
+}
+
+function yookassaConfigured() {
+  return Boolean(YOOKASSA_SHOP_ID && YOOKASSA_SECRET_KEY);
+}
+
+async function createYookassaPayment(order) {
+  if (!yookassaConfigured()) {
+    throw new Error("YooKassa credentials are not configured.");
+  }
+  const auth = Buffer.from(`${YOOKASSA_SHOP_ID}:${YOOKASSA_SECRET_KEY}`).toString("base64");
+  const payload = {
+    amount: { value: Number(order.total).toFixed(2), currency: "RUB" },
+    capture: true,
+    confirmation: {
+      type: "redirect",
+      return_url: `${SITE_URL}/payment.html?order=${encodeURIComponent(order.publicId)}`
+    },
+    description: `Order ${order.publicId} on shamanchik.ru`.slice(0, 128),
+    metadata: { orderId: String(order.id), publicId: order.publicId }
+  };
+  const response = await fetch(`${YOOKASSA_API_URL}/payments`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/json",
+      "Idempotence-Key": crypto.randomUUID()
+    },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.description || data.message || "YooKassa payment creation failed.");
+  }
+  return data;
 }
 
 function parseCookies(cookieHeader = "") {
@@ -1269,8 +1563,177 @@ app.get(["/api/products/:slug", "/chat-api/products/:slug"], (req, res) => {
   res.json({ product });
 });
 
+
+app.get(["/api/store/settings", "/chat-api/store/settings"], (_req, res) => {
+  res.json(storeSettingsPayload());
+});
+
+app.get(["/api/delivery/cities", "/chat-api/delivery/cities"], async (req, res, next) => {
+  try {
+    const query = cleanText(req.query.q, 80);
+    if (!query || query.length < 2) {
+      return res.json({ cities: [] });
+    }
+    if (!cdekConfigured()) {
+      return res.status(503).json({ error: "CDEK is not configured." });
+    }
+    const data = await cdekFetch(`/location/cities?country_codes=RU&city=${encodeURIComponent(query)}&size=12`);
+    const cities = (Array.isArray(data) ? data : []).map((city) => ({
+      code: city.code,
+      name: city.city,
+      region: city.region,
+      country: city.country
+    }));
+    res.json({ cities });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get(["/api/delivery/points", "/chat-api/delivery/points"], async (req, res, next) => {
+  try {
+    const cityCode = cleanInteger(req.query.cityCode, 0);
+    if (!cityCode) {
+      return res.status(400).json({ error: "City code is required." });
+    }
+    if (!cdekConfigured()) {
+      return res.status(503).json({ error: "CDEK is not configured." });
+    }
+    const data = await cdekFetch(`/deliverypoints?country_code=RU&city_code=${cityCode}&type=PVZ`);
+    const points = (Array.isArray(data) ? data : []).map((point) => ({
+      code: point.code,
+      name: point.name,
+      address: point.location?.address_full || point.location?.address || point.address || "",
+      workTime: point.work_time || ""
+    }));
+    res.json({ points });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post(["/api/delivery/calculate", "/chat-api/delivery/calculate"], async (req, res, next) => {
+  try {
+    const settings = storeSettingsPayload();
+    if (!settings.deliveryEnabled) {
+      return res.json({ delivery: { provider: "none", price: 0 } });
+    }
+    if (!settings.cdekReady) {
+      return res.status(503).json({ error: "CDEK is not configured." });
+    }
+    const items = normalizeOrderItems(req.body.items);
+    if (!items.length) {
+      return res.status(400).json({ error: "Cart is empty." });
+    }
+    const delivery = await calculateCdekDelivery({
+      cityCode: req.body.cityCode,
+      deliveryPointCode: req.body.deliveryPointCode,
+      items
+    });
+    res.json({ delivery });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post(["/api/orders", "/chat-api/orders"], async (req, res, next) => {
+  try {
+    const items = normalizeOrderItems(req.body.items);
+    if (!items.length) {
+      return res.status(400).json({ error: "Cart is empty." });
+    }
+    const customer = req.body.customer || {};
+    const customerName = cleanText(customer.name, 120);
+    const customerPhone = cleanText(customer.phone, 40);
+    const customerEmail = cleanText(customer.email, 160);
+    const customerComment = cleanText(customer.comment, 1000);
+    if (!customerName || !customerPhone) {
+      return res.status(400).json({ error: "Name and phone are required." });
+    }
+
+    const settings = storeSettingsPayload();
+    let delivery = { provider: "none", price: 0 };
+    if (settings.deliveryEnabled) {
+      if (!settings.cdekReady) {
+        return res.status(503).json({ error: "CDEK is not configured." });
+      }
+      delivery = await calculateCdekDelivery({
+        cityCode: req.body.delivery?.cityCode,
+        deliveryPointCode: req.body.delivery?.deliveryPointCode,
+        items
+      });
+      delivery.cityName = cleanText(req.body.delivery?.cityName, 160);
+      delivery.pointName = cleanText(req.body.delivery?.pointName, 220);
+      delivery.pointAddress = cleanText(req.body.delivery?.pointAddress, 300);
+    }
+
+    const totals = orderTotals(items, delivery.price);
+    const publicId = `LS-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
+    const stamp = nowIso();
+    const result = db.prepare(`
+      INSERT INTO orders(
+        public_id, customer_name, customer_phone, customer_email, customer_comment,
+        items_json, delivery_json, subtotal, delivery_price, total, status,
+        payment_provider, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      publicId,
+      customerName,
+      customerPhone,
+      customerEmail,
+      customerComment,
+      JSON.stringify(items),
+      JSON.stringify(delivery),
+      totals.subtotal,
+      totals.deliveryPrice,
+      totals.total,
+      "created",
+      "yookassa",
+      stamp,
+      stamp
+    );
+
+    let order = publicOrder(db.prepare("SELECT * FROM orders WHERE id = ?").get(Number(result.lastInsertRowid)));
+    if (settings.paymentEnabled) {
+      if (!yookassaConfigured()) {
+        return res.status(503).json({
+          error: "YooKassa is not configured.",
+          order,
+          paymentRequired: true
+        });
+      }
+      const payment = await createYookassaPayment(order);
+      db.prepare("UPDATE orders SET payment_id = ?, payment_url = ?, payment_status = ?, status = ?, updated_at = ? WHERE id = ?")
+        .run(payment.id || "", payment.confirmation?.confirmation_url || "", payment.status || "", "payment_pending", nowIso(), order.id);
+      order = publicOrder(db.prepare("SELECT * FROM orders WHERE id = ?").get(order.id));
+    }
+
+    res.status(201).json({ order, paymentUrl: order.paymentUrl });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get(["/api/admin/products", "/chat-api/admin/products"], requireAdmin, (_req, res) => {
   res.json({ products: listProducts({ includeInactive: true }) });
+});
+
+
+app.get(["/api/admin/store-settings", "/chat-api/admin/store-settings"], requireAdmin, (_req, res) => {
+  res.json({ settings: storeSettingsPayload({ admin: true }) });
+});
+
+app.patch(["/api/admin/store-settings", "/chat-api/admin/store-settings"], requireAdmin, (req, res) => {
+  setSetting("delivery_enabled", boolFromValue(req.body.deliveryEnabled, true) ? "1" : "0");
+  setSetting("payment_enabled", boolFromValue(req.body.paymentEnabled, true) ? "1" : "0");
+  setSetting("cdek_from_location_code", cleanText(req.body.cdekFromLocationCode, 40));
+  setSetting("cdek_tariff_code", String(cleanInteger(req.body.cdekTariffCode, DEFAULT_CDEK_TARIFF_CODE)));
+  res.json({ settings: storeSettingsPayload({ admin: true }) });
+});
+
+app.get(["/api/admin/orders", "/chat-api/admin/orders"], requireAdmin, (_req, res) => {
+  const rows = db.prepare("SELECT * FROM orders ORDER BY id DESC LIMIT 100").all();
+  res.json({ orders: rows.map(publicOrder) });
 });
 
 app.post(["/api/admin/products", "/chat-api/admin/products"], requireAdmin, (req, res) => {
@@ -1854,6 +2317,7 @@ wss.on("connection", (ws) => {
 });
 
 ensureDefaultChannels();
+ensureStoreSettings();
 ensureDefaultProducts();
 ensureGrainMyceliumPrices();
 

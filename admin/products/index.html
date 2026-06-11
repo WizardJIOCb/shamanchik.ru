@@ -24,6 +24,43 @@
       </nav>
     </header>
 
+
+
+    <section class="store-settings-panel" aria-labelledby="store-settings-title">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">Магазин</p>
+          <h2 id="store-settings-title">Оформление заказа</h2>
+          <span id="store-settings-status">Загрузка настроек...</span>
+        </div>
+        <button class="button button--gold" type="button" id="save-store-settings">Сохранить настройки</button>
+      </div>
+      <form class="store-settings-form" id="store-settings-form">
+        <label class="toggle-row">
+          <input name="deliveryEnabled" type="checkbox">
+          <span>Включить шаг доставки CDEK</span>
+        </label>
+        <label class="toggle-row">
+          <input name="paymentEnabled" type="checkbox">
+          <span>Включить оплату через ЮКассу</span>
+        </label>
+        <div class="form-grid form-grid--thirds">
+          <label>
+            <span>Код города отправления CDEK</span>
+            <input name="cdekFromLocationCode" type="text" inputmode="numeric" placeholder="Например 44">
+          </label>
+          <label>
+            <span>Код тарифа CDEK</span>
+            <input name="cdekTariffCode" type="number" min="1" step="1" placeholder="136">
+          </label>
+          <div class="settings-flags" aria-live="polite">
+            <span id="cdek-credentials-state">CDEK: проверяем</span>
+            <span id="yookassa-credentials-state">ЮКасса: проверяем</span>
+          </div>
+        </div>
+      </form>
+    </section>
+
     <main class="admin-layout">
       <aside class="product-list-panel">
         <div class="panel-head">

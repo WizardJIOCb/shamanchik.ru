@@ -12,8 +12,70 @@ const els = {
   status: document.querySelector("#status"),
   newButton: document.querySelector("#new-product"),
   saveButton: document.querySelector("#save-product"),
-  deleteButton: document.querySelector("#delete-product")
+  deleteButton: document.querySelector("#delete-product"),
+  settingsForm: document.querySelector("#store-settings-form"),
+  settingsStatus: document.querySelector("#store-settings-status"),
+  saveSettingsButton: document.querySelector("#save-store-settings"),
+  cdekCredentialsState: document.querySelector("#cdek-credentials-state"),
+  yookassaCredentialsState: document.querySelector("#yookassa-credentials-state")
 };
+
+
+function renderCredentialFlag(element, label, ready) {
+  if (!element) {
+    return;
+  }
+  element.textContent = label + ": " + (ready ? "ключи есть" : "ключи не заданы");
+  element.classList.toggle("is-ready", Boolean(ready));
+  element.classList.toggle("is-missing", !ready);
+}
+
+function fillStoreSettings(settings) {
+  if (!els.settingsForm) {
+    return;
+  }
+  const form = els.settingsForm.elements;
+  form.deliveryEnabled.checked = Boolean(settings.deliveryEnabled);
+  form.paymentEnabled.checked = Boolean(settings.paymentEnabled);
+  form.cdekFromLocationCode.value = settings.cdekFromLocationCode || "";
+  form.cdekTariffCode.value = settings.cdekTariffCode || 136;
+  renderCredentialFlag(els.cdekCredentialsState, "CDEK", settings.hasCdekCredentials);
+  renderCredentialFlag(els.yookassaCredentialsState, "ЮКасса", settings.hasYookassaCredentials);
+  if (els.settingsStatus) {
+    els.settingsStatus.textContent = settings.deliveryEnabled ? "Доставка включена" : "Доставка отключена";
+  }
+}
+
+function storeSettingsPayload() {
+  const form = els.settingsForm.elements;
+  return {
+    deliveryEnabled: form.deliveryEnabled.checked,
+    paymentEnabled: form.paymentEnabled.checked,
+    cdekFromLocationCode: form.cdekFromLocationCode.value,
+    cdekTariffCode: Number(form.cdekTariffCode.value || 136)
+  };
+}
+
+async function loadStoreSettings() {
+  if (!els.settingsForm) {
+    return;
+  }
+  const data = await fetchJson("/chat-api/admin/store-settings");
+  if (data?.settings) {
+    fillStoreSettings(data.settings);
+  }
+}
+
+async function saveStoreSettings() {
+  const data = await fetchJson("/chat-api/admin/store-settings", {
+    method: "PATCH",
+    body: JSON.stringify(storeSettingsPayload())
+  });
+  if (data?.settings) {
+    fillStoreSettings(data.settings);
+  }
+  showStatus("Настройки оформления сохранены.");
+}
 
 function showStatus(message, isError = false) {
   els.status.textContent = message;
@@ -244,6 +306,19 @@ els.saveButton.addEventListener("click", async () => {
     els.saveButton.disabled = false;
   }
 });
+
+if (els.saveSettingsButton) {
+  els.saveSettingsButton.addEventListener("click", async () => {
+    try {
+      els.saveSettingsButton.disabled = true;
+      await saveStoreSettings();
+    } catch (error) {
+      showStatus(error.message, true);
+    } finally {
+      els.saveSettingsButton.disabled = false;
+    }
+  });
+}
 
 els.deleteButton.addEventListener("click", async () => {
   try {
