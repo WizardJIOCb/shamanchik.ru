@@ -42,6 +42,7 @@ const GRAIN_MYCELIUM_PRICE_OPTIONS = [
 const CDEK_BASE_URL = process.env.CDEK_BASE_URL || "https://api.cdek.ru/v2";
 const CDEK_ACCOUNT = process.env.CDEK_ACCOUNT || process.env.CDEK_CLIENT_ID || "";
 const CDEK_SECURE_PASSWORD = process.env.CDEK_SECURE_PASSWORD || process.env.CDEK_CLIENT_SECRET || "";
+const CDEK_SENDER_POINT_CODE = process.env.CDEK_SENDER_POINT_CODE || "";
 const YOOKASSA_SHOP_ID = process.env.YOOKASSA_SHOP_ID || "";
 const YOOKASSA_SECRET_KEY = process.env.YOOKASSA_SECRET_KEY || "";
 const YOOKASSA_API_URL = process.env.YOOKASSA_API_URL || "https://api.yookassa.ru/v3";
@@ -211,6 +212,7 @@ function ensureStoreSettings() {
   const defaults = new Map([
     ["delivery_enabled", process.env.CDEK_FROM_LOCATION_CODE ? "1" : "0"],
     ["cdek_from_location_code", process.env.CDEK_FROM_LOCATION_CODE || ""],
+    ["cdek_sender_point_code", CDEK_SENDER_POINT_CODE],
     ["cdek_tariff_code", String(process.env.CDEK_TARIFF_CODE || DEFAULT_CDEK_TARIFF_CODE)],
     ["payment_enabled", "1"]
   ]);
@@ -454,16 +456,19 @@ function storeSettingsPayload({ admin = false } = {}) {
   const deliveryEnabled = getSetting("delivery_enabled", "1") === "1";
   const paymentEnabled = getSetting("payment_enabled", "1") === "1";
   const cdekFromLocationCode = getSetting("cdek_from_location_code", "");
+  const cdekSenderPointCode = getSetting("cdek_sender_point_code", CDEK_SENDER_POINT_CODE);
   const cdekTariffCode = cleanInteger(getSetting("cdek_tariff_code", DEFAULT_CDEK_TARIFF_CODE), DEFAULT_CDEK_TARIFF_CODE);
   const payload = {
     deliveryEnabled,
     paymentEnabled,
+    cdekSearchReady: Boolean(CDEK_ACCOUNT && CDEK_SECURE_PASSWORD),
     cdekReady: Boolean(CDEK_ACCOUNT && CDEK_SECURE_PASSWORD && cdekFromLocationCode),
     yookassaReady: Boolean(YOOKASSA_SHOP_ID && YOOKASSA_SECRET_KEY),
     cdekTariffCode
   };
   if (admin) {
     payload.cdekFromLocationCode = cdekFromLocationCode;
+    payload.cdekSenderPointCode = cdekSenderPointCode;
     payload.hasCdekCredentials = Boolean(CDEK_ACCOUNT && CDEK_SECURE_PASSWORD);
     payload.hasYookassaCredentials = Boolean(YOOKASSA_SHOP_ID && YOOKASSA_SECRET_KEY);
   }
@@ -795,6 +800,7 @@ function orderPackageFromItems(items) {
 
 async function calculateCdekDelivery({ cityCode, deliveryPointCode, items }) {
   const fromLocationCode = cleanInteger(getSetting("cdek_from_location_code", ""), 0);
+  const senderPointCode = cleanText(getSetting("cdek_sender_point_code", CDEK_SENDER_POINT_CODE), 80);
   const tariffCode = cleanInteger(getSetting("cdek_tariff_code", DEFAULT_CDEK_TARIFF_CODE), DEFAULT_CDEK_TARIFF_CODE);
   if (!fromLocationCode) {
     throw new Error("Set CDEK sender city code in admin settings.");
@@ -816,6 +822,7 @@ async function calculateCdekDelivery({ cityCode, deliveryPointCode, items }) {
   return {
     provider: "cdek",
     tariffCode,
+    senderPointCode,
     cityCode: toLocationCode,
     deliveryPointCode: cleanText(deliveryPointCode, 80),
     price: Math.ceil(cleanNumber(result.delivery_sum, 0)),
@@ -1727,6 +1734,7 @@ app.patch(["/api/admin/store-settings", "/chat-api/admin/store-settings"], requi
   setSetting("delivery_enabled", boolFromValue(req.body.deliveryEnabled, true) ? "1" : "0");
   setSetting("payment_enabled", boolFromValue(req.body.paymentEnabled, true) ? "1" : "0");
   setSetting("cdek_from_location_code", cleanText(req.body.cdekFromLocationCode, 40));
+  setSetting("cdek_sender_point_code", cleanText(req.body.cdekSenderPointCode, 80));
   setSetting("cdek_tariff_code", String(cleanInteger(req.body.cdekTariffCode, DEFAULT_CDEK_TARIFF_CODE)));
   res.json({ settings: storeSettingsPayload({ admin: true }) });
 });

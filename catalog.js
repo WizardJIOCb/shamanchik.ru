@@ -8,7 +8,7 @@
   const fallbackImage = "/images/product-reishi.png";
   const state = {
     cart: loadCart(),
-    settings: { deliveryEnabled: true, paymentEnabled: true, cdekReady: false, yookassaReady: false },
+    settings: { deliveryEnabled: true, paymentEnabled: true, cdekSearchReady: false, cdekReady: false, yookassaReady: false },
     checkout: { city: null, points: [], selectedPoint: null, delivery: null }
   };
 
@@ -383,7 +383,7 @@
     state.checkout.delivery = null;
     cartEls.pointSelect.disabled = true;
     cartEls.pointSelect.innerHTML = '<option value="">Сначала выберите город</option>';
-    if (query.length < 2 || !state.settings.cdekReady) {
+    if (query.length < 2 || !state.settings.cdekSearchReady) {
       cartEls.cityOptions.innerHTML = "";
       renderSummary();
       return;
@@ -559,7 +559,8 @@
   ])
     .then(([settings, data]) => {
       state.settings = { ...state.settings, ...settings };
-      if (!state.settings.cdekReady) cartEls.deliveryNote.textContent = "CDEK появится после настройки ключей и города отправления.";
+      if (!state.settings.cdekSearchReady) cartEls.deliveryNote.textContent = "CDEK появится после настройки ключей.";
+      if (state.settings.cdekSearchReady && !state.settings.cdekReady) cartEls.deliveryNote.textContent = "Укажите город отправления CDEK в админке.";
       renderProducts(data.products || []);
     })
     .catch(() => {
