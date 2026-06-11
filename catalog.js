@@ -44,6 +44,10 @@
     return `https://api.whatsapp.com/send/?phone=${whatsappPhone}&text=${encodeURIComponent(text)}&type=phone_number&app_absent=0`;
   }
 
+  function canUseCheckoutPayment() {
+    return Boolean(state.settings.paymentEnabled && state.settings.yookassaReady);
+  }
+
   function safeImageUrl(value) {
     const url = String(value || "").trim();
     if (/^(\/images\/|images\/|https?:\/\/)/i.test(url)) return url;
@@ -319,7 +323,7 @@
     modalEls.order.removeAttribute("href");
     modalEls.order.removeAttribute("target");
     modalEls.order.removeAttribute("rel");
-    if (state.settings.paymentEnabled === false) {
+    if (!canUseCheckoutPayment()) {
       modalEls.order.textContent = "Купить";
       modalEls.order.href = whatsappUrl(product, firstOption(product)?.unit);
       modalEls.order.target = "_blank";
@@ -360,7 +364,7 @@
       </article>`).join("");
     cartEls.deliverySection.hidden = !(state.settings.deliveryEnabled && state.settings.cdekReady);
     const submit = cartEls.form.querySelector(".checkout-submit");
-    const paymentReady = state.settings.paymentEnabled && state.settings.yookassaReady;
+    const paymentReady = canUseCheckoutPayment();
     submit.disabled = !paymentReady;
     submit.textContent = paymentReady ? "Перейти к оплате" : "Оплата скоро будет доступна";
     showCheckoutError(paymentReady ? "" : "ЮКасса появится после подключения ключей на сервере.");
@@ -472,7 +476,7 @@
       pointAddress: state.checkout.selectedPoint.address
     } : null;
     const submit = cartEls.form.querySelector(".checkout-submit");
-    if (!(state.settings.paymentEnabled && state.settings.yookassaReady)) {
+    if (!canUseCheckoutPayment()) {
       showCheckoutError("ЮКасса появится после подключения ключей на сервере.");
       return;
     }
