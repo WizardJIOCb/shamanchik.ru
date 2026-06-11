@@ -6,6 +6,7 @@
   const products = new Map();
   const cartKey = "shamanchik_cart_v1";
   const fallbackImage = "/images/product-reishi.png";
+  const whatsappPhone = "79871355371";
   const state = {
     cart: loadCart(),
     settings: { deliveryEnabled: true, paymentEnabled: true, cdekSearchReady: false, cdekReady: false, yookassaReady: false },
@@ -34,6 +35,13 @@
 
   function money(value) {
     return `${Number(value || 0).toLocaleString("ru-RU")} ₽`;
+  }
+
+  function whatsappUrl(product, unit) {
+    const option = priceOptions(product).find((item) => item.unit === unit) || firstOption(product);
+    const details = [product.title, option?.unit, Number(option?.price) ? money(option.price) : ""].filter(Boolean).join(", ");
+    const text = `Здравствуйте, хочу приобрести: ${details}.`;
+    return `https://api.whatsapp.com/send/?phone=${whatsappPhone}&text=${encodeURIComponent(text)}&type=phone_number&app_absent=0`;
   }
 
   function safeImageUrl(value) {
@@ -306,9 +314,21 @@
     modalEls.title.textContent = product.title;
     modalEls.meta.textContent = [product.category, formatProductUnits(product), formatPrice(product)].filter(Boolean).join(" · ");
     modalEls.description.innerHTML = `${escapeHtml(modalDescription(product)).replace(/\n/g, "<br>")}${renderBenefits(product)}`;
+    delete modalEls.order.dataset.cartAddModal;
+    delete modalEls.order.dataset.whatsappProduct;
     modalEls.order.removeAttribute("href");
-    modalEls.order.textContent = "Добавить в корзину";
-    modalEls.order.dataset.cartAddModal = product.slug;
+    modalEls.order.removeAttribute("target");
+    modalEls.order.removeAttribute("rel");
+    if (state.settings.paymentEnabled === false) {
+      modalEls.order.textContent = "Купить";
+      modalEls.order.href = whatsappUrl(product, firstOption(product)?.unit);
+      modalEls.order.target = "_blank";
+      modalEls.order.rel = "noopener";
+      modalEls.order.dataset.whatsappProduct = product.slug;
+    } else {
+      modalEls.order.textContent = "Добавить в корзину";
+      modalEls.order.dataset.cartAddModal = product.slug;
+    }
     renderFacts(product);
     renderModalVariant(product);
     modal.hidden = false;
@@ -504,6 +524,13 @@
   modal.addEventListener("click", (event) => {
     if (event.target.closest("[data-product-close]")) {
       closeModal();
+      return;
+    }
+    const whatsapp = event.target.closest("[data-whatsapp-product]");
+    if (whatsapp) {
+      const product = products.get(whatsapp.dataset.whatsappProduct);
+      const select = modal.querySelector("[data-product-modal-variant]");
+      if (product) whatsapp.href = whatsappUrl(product, select?.value || firstOption(product)?.unit);
       return;
     }
     const modalAdd = event.target.closest("[data-cart-add-modal]");
