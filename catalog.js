@@ -509,6 +509,11 @@
     const addButton = event.target.closest("[data-cart-add]");
     if (addButton) {
       event.preventDefault();
+      if (!canUseCheckoutPayment()) {
+        const product = products.get(addButton.dataset.cartAdd);
+        if (product) window.open(whatsappUrl(product, addButton.dataset.cartUnit), "_blank", "noopener");
+        return;
+      }
       addToCart(addButton.dataset.cartAdd, addButton.dataset.cartUnit);
       return;
     }
