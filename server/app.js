@@ -825,7 +825,7 @@ async function calculateCdekDelivery({ cityCode, deliveryPointCode, items }) {
     senderPointCode,
     cityCode: toLocationCode,
     deliveryPointCode: cleanText(deliveryPointCode, 80),
-    price: Math.ceil(cleanNumber(result.delivery_sum, 0)),
+    price: Math.ceil(cleanNumber(result.total_sum ?? result.delivery_sum, 0)),
     periodMin: result.period_min || null,
     periodMax: result.period_max || null,
     raw: result
