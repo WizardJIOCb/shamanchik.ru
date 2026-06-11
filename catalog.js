@@ -257,6 +257,17 @@
       </article>`;
   }
 
+  function isSomaCategory(product) {
+    return String(product.category || "").trim().toLocaleLowerCase("ru-RU") === "сома";
+  }
+
+  function categoryBanner() {
+    return `
+      <div class="product-category-banner" aria-hidden="true">
+        <img src="images/banner1.jpg" alt="">
+      </div>`;
+  }
+
   function renderProducts(items) {
     if (!items.length) {
       grid.innerHTML = '<p class="product-card__empty">Каталог скоро появится.</p>';
@@ -264,7 +275,12 @@
     }
     products.clear();
     for (const product of items) products.set(product.slug, product);
-    grid.innerHTML = items.map(productCard).join("");
+    let somaBannerRendered = false;
+    grid.innerHTML = items.map((product) => {
+      const banner = !somaBannerRendered && isSomaCategory(product) ? categoryBanner() : "";
+      if (banner) somaBannerRendered = true;
+      return `${banner}${productCard(product)}`;
+    }).join("");
     grid.querySelectorAll("[data-product-image]").forEach((element) => {
       setImage(element, element.dataset.productImage);
       const product = products.get(element.dataset.productImageSlug);
