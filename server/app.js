@@ -22,6 +22,8 @@ const STATIC_PAGES = new Map([
 const STORAGE_DIR = process.env.CHAT_STORAGE_DIR || path.join(ROOT_DIR, "storage");
 const DB_PATH = process.env.CHAT_DB_PATH || path.join(STORAGE_DIR, "chat.sqlite");
 const UPLOAD_DIR = process.env.CHAT_UPLOAD_DIR || path.join(STORAGE_DIR, "uploads");
+const PRODUCTS_DIR = path.join(ROOT_DIR, "images", "products");
+const PRODUCTS_MD_PATH = path.join(PRODUCTS_DIR, "products.md");
 const PORT = Number(process.env.PORT || 3210);
 const SESSION_COOKIE = "shamanchik_chat_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
@@ -31,9 +33,16 @@ const ADMIN_USERNAMES = new Set([
   "wizardjiocb",
   "shamanchik008"
 ]);
+const GRAIN_MYCELIUM_PRICE_OPTIONS = [
+  { unit: "100 г", price: 800 },
+  { unit: "300 г", price: 2200 },
+  { unit: "500 г", price: 3500 },
+  { unit: "1000 г", price: 6000 }
+];
 
 fs.mkdirSync(STORAGE_DIR, { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+fs.mkdirSync(PRODUCTS_DIR, { recursive: true });
 
 const db = new DatabaseSync(DB_PATH);
 db.exec(`
@@ -128,12 +137,53 @@ db.exec(`
     last_seen_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    subtitle TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT '',
+    short_description TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    benefits_json TEXT NOT NULL DEFAULT '[]',
+    dosage TEXT NOT NULL DEFAULT '',
+    composition TEXT NOT NULL DEFAULT '',
+    notice TEXT NOT NULL DEFAULT '',
+    image_url TEXT NOT NULL DEFAULT '',
+    price INTEGER NOT NULL DEFAULT 0,
+    unit TEXT NOT NULL DEFAULT '100 г',
+    price_options_json TEXT NOT NULL DEFAULT '[]',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);
+
+function ensureProductSchema() {
+  const columns = db.prepare("PRAGMA table_info(products)").all().map((column) => column.name);
+  if (!columns.includes("price_options_json")) {
+    db.exec("ALTER TABLE products ADD COLUMN price_options_json TEXT NOT NULL DEFAULT '[]'");
+  }
+}
+
+ensureProductSchema();
 
 const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
+app.get(["/admin/products", "/admin/products/"], (req, res) => {
+  const session = getSession(req);
+  if (!session) {
+    return res.redirect("/chat");
+  }
+  if (!session.isAdmin) {
+    return res.status(403).type("text/plain; charset=utf-8").send("Доступ только для администратора.");
+  }
+  return res.sendFile(path.join(ROOT_DIR, "admin", "products", "index.html"));
+});
 app.use(express.static(ROOT_DIR, {
   extensions: ["html"]
 }));
@@ -151,6 +201,25 @@ const upload = multer({
   limits: { fileSize: MAX_FILE_SIZE }
 });
 
+const productImageUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, PRODUCTS_DIR),
+    filename: (_req, file, cb) => {
+      const safeBase = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const ext = path.extname(safeBase).toLowerCase() || ".jpg";
+      const name = path.basename(safeBase, ext).slice(0, 48) || "product";
+      cb(null, `${Date.now()}-${crypto.randomUUID()}-${name}${ext}`);
+    }
+  }),
+  fileFilter: (_req, file, cb) => {
+    if (!String(file.mimetype || "").startsWith("image/")) {
+      return cb(new Error("Only image files are allowed."));
+    }
+    return cb(null, true);
+  },
+  limits: { fileSize: MAX_FILE_SIZE }
+});
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -163,6 +232,11 @@ function dayKey(offset = 0) {
 
 function cleanText(value, limit = 2000) {
   return String(value || "").trim().slice(0, limit);
+}
+
+function cleanInteger(value, fallback = 0) {
+  const normalized = Number.parseInt(String(value ?? "").replace(/[^\d-]/g, ""), 10);
+  return Number.isFinite(normalized) ? normalized : fallback;
 }
 
 function slugify(value) {
@@ -184,6 +258,312 @@ function uniqueSlug(base) {
     slug = `${normalized.slice(0, 40)}-${suffix}`;
   }
   return slug;
+}
+
+function uniqueProductSlug(base, productId = null) {
+  const normalized = slugify(base).replace(/^channel-/, "product-");
+  let slug = normalized || `product-${crypto.randomUUID().slice(0, 8)}`;
+  let suffix = 1;
+  const exists = db.prepare("SELECT id FROM products WHERE slug = ?");
+  while (true) {
+    const row = exists.get(slug);
+    if (!row || Number(row.id) === Number(productId)) {
+      return slug;
+    }
+    suffix += 1;
+    slug = `${normalized.slice(0, 40)}-${suffix}`;
+  }
+}
+
+function parseBenefits(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => cleanText(item, 240)).filter(Boolean);
+  }
+  if (typeof value !== "string") {
+    return [];
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => cleanText(item, 240)).filter(Boolean);
+    }
+  } catch {
+    // Plain textarea input is handled below.
+  }
+  return trimmed
+    .split(/\r?\n/)
+    .map((line) => cleanText(line.replace(/^[•*-]\s*/, ""), 240))
+    .filter(Boolean);
+}
+
+function parsePriceOptions(value) {
+  let items = [];
+  if (Array.isArray(value)) {
+    items = value;
+  } else if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      items = [];
+    } else {
+      try {
+        const parsed = JSON.parse(trimmed);
+        items = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        items = trimmed.split(/\r?\n/).map((line) => {
+          const [unitPart, pricePart] = line.split(/\s*[-–—:]\s*/);
+          return {
+            unit: unitPart,
+            price: pricePart
+          };
+        });
+      }
+    }
+  }
+
+  return items
+    .map((item) => ({
+      unit: cleanText(item.unit, 80),
+      price: Math.max(0, cleanInteger(item.price, 0))
+    }))
+    .filter((item) => item.unit && item.price > 0);
+}
+
+function defaultGrainMyceliumPriceOptions() {
+  return GRAIN_MYCELIUM_PRICE_OPTIONS.map((option) => ({ ...option }));
+}
+
+function isGrainMyceliumProduct(product) {
+  const haystack = `${product.title || ""} ${product.category || ""}`.toLocaleLowerCase("ru-RU");
+  return haystack.includes("зерновой мицелий");
+}
+
+function normalizeProduct(row) {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    subtitle: row.subtitle,
+    category: row.category,
+    shortDescription: row.short_description,
+    description: row.description,
+    benefits: parseBenefits(row.benefits_json),
+    dosage: row.dosage,
+    composition: row.composition,
+    notice: row.notice,
+    imageUrl: row.image_url,
+    price: row.price,
+    unit: row.unit,
+    priceOptions: parsePriceOptions(row.price_options_json),
+    isActive: Boolean(row.is_active),
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function listProducts({ includeInactive = false } = {}) {
+  const where = includeInactive ? "" : "WHERE is_active = 1";
+  return db.prepare(`
+    SELECT *
+    FROM products
+    ${where}
+    ORDER BY sort_order ASC, id ASC
+  `).all().map(normalizeProduct);
+}
+
+function getProduct(productId) {
+  const row = db.prepare("SELECT * FROM products WHERE id = ?").get(productId);
+  return row ? normalizeProduct(row) : null;
+}
+
+function getProductBySlug(slug) {
+  const row = db.prepare("SELECT * FROM products WHERE slug = ? AND is_active = 1").get(slug);
+  return row ? normalizeProduct(row) : null;
+}
+
+function productPayloadFromBody(body, existing = {}) {
+  const title = cleanText(body.title, 140) || existing.title || "";
+  const benefits = parseBenefits(body.benefits);
+  const priceOptions = parsePriceOptions(body.priceOptions ?? body.price_options_json ?? existing.priceOptions);
+  const baseOption = priceOptions[0];
+  const slugBase = cleanText(body.slug, 100) || title;
+  return {
+    slug: uniqueProductSlug(slugBase, existing.id),
+    title,
+    subtitle: cleanText(body.subtitle, 160),
+    category: cleanText(body.category, 120),
+    shortDescription: cleanText(body.shortDescription ?? body.short_description, 420),
+    description: cleanText(body.description, 12000),
+    benefitsJson: JSON.stringify(benefits),
+    dosage: cleanText(body.dosage, 420),
+    composition: cleanText(body.composition, 700),
+    notice: cleanText(body.notice, 420),
+    imageUrl: cleanText(body.imageUrl ?? body.image_url, 500),
+    price: Math.max(0, cleanInteger(body.price, baseOption?.price || existing.price || 0)),
+    unit: cleanText(body.unit, 80) || baseOption?.unit || "100 г",
+    priceOptionsJson: JSON.stringify(priceOptions),
+    isActive: body.isActive === false || body.isActive === "false" || body.is_active === 0 || body.is_active === "0" ? 0 : 1,
+    sortOrder: cleanInteger(body.sortOrder ?? body.sort_order, existing.sortOrder || 0)
+  };
+}
+
+function toDisplayTitle(value) {
+  const lower = cleanText(value, 160).toLocaleLowerCase("ru-RU");
+  return lower.replace(/(^|[\s-])([a-zа-яё])/giu, (_match, prefix, letter) => (
+    `${prefix}${letter.toLocaleUpperCase("ru-RU")}`
+  ));
+}
+
+function extractField(lines, label) {
+  const index = lines.findIndex((line) => line.toLocaleLowerCase("ru-RU").startsWith(label.toLocaleLowerCase("ru-RU")));
+  if (index === -1) {
+    return "";
+  }
+  const sameLine = lines[index].slice(label.length).replace(/^:\s*/, "").trim();
+  if (sameLine) {
+    return sameLine;
+  }
+  for (const line of lines.slice(index + 1)) {
+    const trimmed = line.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+  return "";
+}
+
+function parseProductsMarkdown() {
+  if (!fs.existsSync(PRODUCTS_MD_PATH)) {
+    return [];
+  }
+
+  const imageFiles = fs.readdirSync(PRODUCTS_DIR)
+    .filter((fileName) => /\.(jpe?g|png|webp)$/i.test(fileName))
+    .sort((a, b) => a.localeCompare(b, "ru"));
+
+  const content = fs.readFileSync(PRODUCTS_MD_PATH, "utf8");
+  const blocks = content
+    .split(/(?:^|\r?\n)> Shaman:\s*\r?\n/g)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  return blocks.map((block, index) => {
+    const lines = block.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const rawTitle = (lines.shift() || "").replace(/^[^\p{L}\p{N}]+/u, "");
+    const title = toDisplayTitle(rawTitle);
+    const bodyLines = lines;
+    const benefits = bodyLines
+      .filter((line) => line.startsWith("•"))
+      .map((line) => cleanText(line.replace(/^•\s*/, ""), 240))
+      .filter(Boolean);
+    const descriptionLines = [];
+    for (const line of bodyLines) {
+      if (line.startsWith("•") || /способствует\s*:/i.test(line) || /^Рекомендованная дозировка:/i.test(line) || /^Состав:/i.test(line) || /^Не является/i.test(line)) {
+        break;
+      }
+      descriptionLines.push(line);
+    }
+    const description = descriptionLines.join("\n\n");
+    const fullDescription = bodyLines.join("\n\n");
+    const imageName = imageFiles[index] || "";
+
+    return {
+      slug: uniqueProductSlug(title),
+      title,
+      subtitle: "Порошок",
+      category: "Зерновой мицелий",
+      shortDescription: description.slice(0, 420),
+      description: fullDescription,
+      benefitsJson: JSON.stringify(benefits),
+      dosage: extractField(bodyLines, "Рекомендованная дозировка"),
+      composition: extractField(bodyLines, "Состав"),
+      notice: bodyLines.find((line) => /^Не является/i.test(line)) || "Не является лекарственным средством.",
+      imageUrl: imageName ? `/images/products/${imageName}` : "",
+      price: GRAIN_MYCELIUM_PRICE_OPTIONS[0].price,
+      unit: "100 г",
+      priceOptionsJson: JSON.stringify(defaultGrainMyceliumPriceOptions()),
+      isActive: 1,
+      sortOrder: index
+    };
+  });
+}
+
+function ensureDefaultProducts() {
+  const count = db.prepare("SELECT COUNT(*) AS count FROM products").get().count;
+  if (count > 0) {
+    return;
+  }
+
+  const products = parseProductsMarkdown();
+  if (!products.length) {
+    return;
+  }
+
+  const stamp = nowIso();
+  const insert = db.prepare(`
+    INSERT INTO products(
+      slug, title, subtitle, category, short_description, description, benefits_json,
+      dosage, composition, notice, image_url, price, unit, price_options_json, is_active, sort_order,
+      created_at, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  db.exec("BEGIN");
+  try {
+    for (const item of products) {
+      insert.run(
+        item.slug,
+        item.title,
+        item.subtitle,
+        item.category,
+        item.shortDescription,
+        item.description,
+        item.benefitsJson,
+        item.dosage,
+        item.composition,
+        item.notice,
+        item.imageUrl,
+        item.price,
+        item.unit,
+        item.priceOptionsJson,
+        item.isActive,
+        item.sortOrder,
+        stamp,
+        stamp
+      );
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+function ensureGrainMyceliumPrices() {
+  const defaultOptions = defaultGrainMyceliumPriceOptions();
+  const optionsJson = JSON.stringify(defaultOptions);
+  const rows = db.prepare("SELECT id, title, category, price, unit, price_options_json FROM products").all();
+  const update = db.prepare(`
+    UPDATE products
+    SET price = ?, unit = ?, price_options_json = ?, updated_at = ?
+    WHERE id = ?
+  `);
+  const stamp = nowIso();
+
+  for (const row of rows) {
+    if (!isGrainMyceliumProduct(row)) {
+      continue;
+    }
+    if (parsePriceOptions(row.price_options_json).length > 0) {
+      continue;
+    }
+    update.run(defaultOptions[0].price, defaultOptions[0].unit, optionsJson, stamp, row.id);
+  }
 }
 
 function parseCookies(cookieHeader = "") {
@@ -877,6 +1257,145 @@ app.get(["/chat/admin", "/chat/admin/"], (req, res) => {
   return res.sendFile(path.join(CHAT_DIR, "admin.html"));
 });
 
+app.get(["/api/products", "/chat-api/products"], (_req, res) => {
+  res.json({ products: listProducts() });
+});
+
+app.get(["/api/products/:slug", "/chat-api/products/:slug"], (req, res) => {
+  const product = getProductBySlug(cleanText(req.params.slug, 100));
+  if (!product) {
+    return res.status(404).json({ error: "Product not found." });
+  }
+  res.json({ product });
+});
+
+app.get(["/api/admin/products", "/chat-api/admin/products"], requireAdmin, (_req, res) => {
+  res.json({ products: listProducts({ includeInactive: true }) });
+});
+
+app.post(["/api/admin/products", "/chat-api/admin/products"], requireAdmin, (req, res) => {
+  const payload = productPayloadFromBody(req.body);
+  if (!payload.title) {
+    return res.status(400).json({ error: "Title is required." });
+  }
+
+  const stamp = nowIso();
+  const result = db.prepare(`
+    INSERT INTO products(
+      slug, title, subtitle, category, short_description, description, benefits_json,
+      dosage, composition, notice, image_url, price, unit, price_options_json, is_active, sort_order,
+      created_at, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    payload.slug,
+    payload.title,
+    payload.subtitle,
+    payload.category,
+    payload.shortDescription,
+    payload.description,
+    payload.benefitsJson,
+    payload.dosage,
+    payload.composition,
+    payload.notice,
+    payload.imageUrl,
+    payload.price,
+    payload.unit,
+    payload.priceOptionsJson,
+    payload.isActive,
+    payload.sortOrder,
+    stamp,
+    stamp
+  );
+
+  res.status(201).json({ product: getProduct(Number(result.lastInsertRowid)) });
+});
+
+app.patch(["/api/admin/products/:productId", "/chat-api/admin/products/:productId"], requireAdmin, (req, res) => {
+  const productId = Number(req.params.productId);
+  const existing = getProduct(productId);
+  if (!existing) {
+    return res.status(404).json({ error: "Product not found." });
+  }
+
+  const payload = productPayloadFromBody(req.body, existing);
+  if (!payload.title) {
+    return res.status(400).json({ error: "Title is required." });
+  }
+
+  db.prepare(`
+    UPDATE products
+    SET
+      slug = ?,
+      title = ?,
+      subtitle = ?,
+      category = ?,
+      short_description = ?,
+      description = ?,
+      benefits_json = ?,
+      dosage = ?,
+      composition = ?,
+      notice = ?,
+      image_url = ?,
+      price = ?,
+      unit = ?,
+      price_options_json = ?,
+      is_active = ?,
+      sort_order = ?,
+      updated_at = ?
+    WHERE id = ?
+  `).run(
+    payload.slug,
+    payload.title,
+    payload.subtitle,
+    payload.category,
+    payload.shortDescription,
+    payload.description,
+    payload.benefitsJson,
+    payload.dosage,
+    payload.composition,
+    payload.notice,
+    payload.imageUrl,
+    payload.price,
+    payload.unit,
+    payload.priceOptionsJson,
+    payload.isActive,
+    payload.sortOrder,
+    nowIso(),
+    productId
+  );
+
+  res.json({ product: getProduct(productId) });
+});
+
+app.delete(["/api/admin/products/:productId", "/chat-api/admin/products/:productId"], requireAdmin, (req, res) => {
+  const productId = Number(req.params.productId);
+  const existing = getProduct(productId);
+  if (!existing) {
+    return res.status(404).json({ error: "Product not found." });
+  }
+  db.prepare("DELETE FROM products WHERE id = ?").run(productId);
+  res.json({ ok: true, productId });
+});
+
+app.post(["/api/admin/products/:productId/image", "/chat-api/admin/products/:productId/image"], requireAdmin, productImageUpload.single("image"), (req, res) => {
+  const productId = Number(req.params.productId);
+  const existing = getProduct(productId);
+  if (!existing) {
+    if (req.file?.path) {
+      fs.unlink(req.file.path, () => {});
+    }
+    return res.status(404).json({ error: "Product not found." });
+  }
+  if (!req.file) {
+    return res.status(400).json({ error: "Image file is required." });
+  }
+
+  const imageUrl = `/images/products/${path.basename(req.file.path)}`;
+  db.prepare("UPDATE products SET image_url = ?, updated_at = ? WHERE id = ?").run(imageUrl, nowIso(), productId);
+  res.json({ product: getProduct(productId) });
+});
+
 app.get("/chat-api/me", (req, res) => {
   const session = getSession(req);
   if (!session) {
@@ -1267,6 +1786,10 @@ app.use((err, _req, res, _next) => {
   if (err?.code === "LIMIT_FILE_SIZE") {
     return res.status(413).json({ error: "Файл слишком большой. Лимит 5 МБ." });
   }
+  if (err?.code === "EACCES" || err?.code === "EPERM") {
+    console.error(err);
+    return res.status(500).json({ error: "Сервер не может сохранить файл. Проверьте права на папку загрузки." });
+  }
   console.error(err);
   res.status(500).json({ error: "Внутренняя ошибка сервера." });
 });
@@ -1331,6 +1854,8 @@ wss.on("connection", (ws) => {
 });
 
 ensureDefaultChannels();
+ensureDefaultProducts();
+ensureGrainMyceliumPrices();
 
 server.listen(PORT, () => {
   console.log(`Shamanchik chat server listening on ${PORT}`);

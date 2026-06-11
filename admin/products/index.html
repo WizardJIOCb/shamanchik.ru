@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Товары | Лавка Шамана</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/images/icon-64.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/products.css">
+</head>
+<body>
+  <div class="admin-shell">
+    <header class="admin-header">
+      <div>
+        <p class="eyebrow">Админка каталога</p>
+        <h1>Товары</h1>
+      </div>
+      <nav class="admin-nav" aria-label="Админ-навигация">
+        <a href="/">Сайт</a>
+        <a href="/chat/admin">Чат</a>
+        <a href="/chat">Войти</a>
+      </nav>
+    </header>
+
+    <main class="admin-layout">
+      <aside class="product-list-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Каталог</h2>
+            <span id="product-count">0 товаров</span>
+          </div>
+          <button class="button button--gold" type="button" id="new-product">Новый</button>
+        </div>
+        <div class="product-list" id="product-list" aria-live="polite"></div>
+      </aside>
+
+      <section class="editor-panel" aria-labelledby="editor-title">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Карточка</p>
+            <h2 id="editor-title">Новый товар</h2>
+          </div>
+          <div class="editor-actions">
+            <button class="button" type="button" id="delete-product">Удалить</button>
+            <button class="button button--gold" type="button" id="save-product">Сохранить</button>
+          </div>
+        </div>
+
+        <form class="product-form" id="product-form">
+          <input type="hidden" name="id">
+
+          <label>
+            <span>Название</span>
+            <input name="title" type="text" maxlength="140" required>
+          </label>
+
+          <div class="form-grid">
+            <label>
+              <span>Подзаголовок</span>
+              <input name="subtitle" type="text" maxlength="160">
+            </label>
+            <label>
+              <span>Категория</span>
+              <input name="category" type="text" maxlength="120">
+            </label>
+          </div>
+
+          <div class="form-grid form-grid--thirds">
+            <label>
+              <span>Цена, ₽</span>
+              <input name="price" type="number" min="0" step="1">
+            </label>
+            <label>
+              <span>Объём / вес</span>
+              <input name="unit" type="text" maxlength="80">
+            </label>
+            <label>
+              <span>Порядок</span>
+              <input name="sortOrder" type="number" step="1">
+            </label>
+          </div>
+
+          <label>
+            <span>Фасовки и цены</span>
+            <textarea name="priceOptions" rows="4" placeholder="100 г - 800&#10;300 г - 2200&#10;500 г - 3500&#10;1000 г - 6000"></textarea>
+          </label>
+
+          <label>
+            <span>Короткое описание</span>
+            <textarea name="shortDescription" rows="3" maxlength="420"></textarea>
+          </label>
+
+          <label>
+            <span>Полное описание</span>
+            <textarea name="description" rows="8" maxlength="12000"></textarea>
+          </label>
+
+          <label>
+            <span>Польза / свойства</span>
+            <textarea name="benefits" rows="7"></textarea>
+          </label>
+
+          <div class="form-grid">
+            <label>
+              <span>Дозировка</span>
+              <textarea name="dosage" rows="3" maxlength="420"></textarea>
+            </label>
+            <label>
+              <span>Состав</span>
+              <textarea name="composition" rows="3" maxlength="700"></textarea>
+            </label>
+          </div>
+
+          <label>
+            <span>Примечание</span>
+            <input name="notice" type="text" maxlength="420">
+          </label>
+
+          <div class="media-row">
+            <div class="image-preview" id="image-preview"></div>
+            <div class="media-fields">
+              <label>
+                <span>Ссылка на изображение</span>
+                <input name="imageUrl" type="text" maxlength="500">
+              </label>
+              <label>
+                <span>Загрузить новое изображение</span>
+                <input name="imageFile" type="file" accept="image/*">
+              </label>
+            </div>
+          </div>
+
+          <label class="toggle-row">
+            <input name="isActive" type="checkbox">
+            <span>Показывать на сайте</span>
+          </label>
+        </form>
+      </section>
+    </main>
+
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="/admin/products.js" defer></script>
+</body>
+</html>
