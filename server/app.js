@@ -1709,7 +1709,17 @@ app.post(["/api/orders", "/chat-api/orders"], async (req, res, next) => {
           paymentRequired: true
         });
       }
-      const payment = await createYookassaPayment(order);
+      let payment;
+      try {
+        payment = await createYookassaPayment(order);
+      } catch (error) {
+        console.error(error);
+        return res.status(502).json({
+          error: `YooKassa payment error: ${error.message}`,
+          order,
+          paymentRequired: true
+        });
+      }
       db.prepare("UPDATE orders SET payment_id = ?, payment_url = ?, payment_status = ?, status = ?, updated_at = ? WHERE id = ?")
         .run(payment.id || "", payment.confirmation?.confirmation_url || "", payment.status || "", "payment_pending", nowIso(), order.id);
       order = publicOrder(db.prepare("SELECT * FROM orders WHERE id = ?").get(order.id));

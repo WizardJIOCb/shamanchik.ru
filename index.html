@@ -1501,7 +1501,15 @@
       background: rgba(217, 120, 95, 0.08);
     }
 
-    .checkout-submit { width: 100%; }
+    .checkout-submit {
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .checkout-submit:disabled {
+      cursor: not-allowed;
+      opacity: 0.72;
+    }
 
     @media (max-width: 640px) {
       .cart-fab { right: 14px; bottom: 74px; width: 52px; height: 52px; }

@@ -468,7 +468,13 @@
       }
       showCheckoutError("Заказ создан, но ссылка на оплату не получена. Проверьте настройки ЮКассы.");
     } catch (error) {
-      showCheckoutError(error.message === "YooKassa is not configured." ? "ЮКасса пока не настроена: пропишите ключи на сервере." : error.message);
+      if (error.message === "YooKassa is not configured.") {
+        showCheckoutError("ЮКасса пока не настроена: пропишите ключи на сервере.");
+      } else if (error.message.startsWith("YooKassa payment error:")) {
+        showCheckoutError("ЮКасса отклонила shopID или secret key. Проверьте ключи в личном кабинете ЮКассы.");
+      } else {
+        showCheckoutError(error.message);
+      }
     } finally {
       submit.disabled = false;
       submit.textContent = "Перейти к оплате";
