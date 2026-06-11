@@ -339,6 +339,11 @@
         <button class="cart-item__remove" type="button" data-cart-remove="${escapeHtml(item.key)}" aria-label="Убрать товар">×</button>
       </article>`).join("");
     cartEls.deliverySection.hidden = !(state.settings.deliveryEnabled && state.settings.cdekReady);
+    const submit = cartEls.form.querySelector(".checkout-submit");
+    const paymentReady = state.settings.paymentEnabled && state.settings.yookassaReady;
+    submit.disabled = !paymentReady;
+    submit.textContent = paymentReady ? "Перейти к оплате" : "Оплата скоро будет доступна";
+    showCheckoutError(paymentReady ? "" : "ЮКасса появится после подключения ключей на сервере.");
     renderSummary();
   }
 
@@ -447,6 +452,10 @@
       pointAddress: state.checkout.selectedPoint.address
     } : null;
     const submit = cartEls.form.querySelector(".checkout-submit");
+    if (!(state.settings.paymentEnabled && state.settings.yookassaReady)) {
+      showCheckoutError("ЮКасса появится после подключения ключей на сервере.");
+      return;
+    }
     submit.disabled = true;
     submit.textContent = "Создаём заказ...";
     try {
