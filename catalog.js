@@ -207,6 +207,7 @@
     document.body.appendChild(root);
     return {
       root,
+      fab: root.querySelector("[data-cart-open]"),
       panel: root.querySelector("[data-cart-panel]"),
       count: root.querySelector("[data-cart-count]"),
       list: root.querySelector("[data-cart-list]"),
@@ -346,6 +347,7 @@
 
   function renderCart() {
     const count = state.cart.reduce((sum, item) => sum + item.quantity, 0);
+    cartEls.fab.hidden = !canUseCheckoutPayment();
     cartEls.count.textContent = count;
     cartEls.root.classList.toggle("has-items", count > 0);
     if (!state.cart.length) {
