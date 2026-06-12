@@ -875,6 +875,65 @@ function publicOrder(row) {
   };
 }
 
+function yookassaOrderStatus(paymentStatus, currentStatus = "") {
+  const normalized = cleanText(paymentStatus, 64);
+  if (normalized === "succeeded") {
+    return "paid";
+  }
+  if (normalized === "canceled") {
+    return "payment_canceled";
+  }
+  if (normalized === "waiting_for_capture") {
+    return "payment_waiting_capture";
+  }
+  if (currentStatus === "paid" || currentStatus === "payment_canceled") {
+    return currentStatus;
+  }
+  return "payment_pending";
+}
+
+function findOrderForYookassaPayment(payment) {
+  const paymentId = cleanText(payment?.id, 120);
+  const metadataOrderId = cleanInteger(payment?.metadata?.orderId, 0);
+  if (metadataOrderId) {
+    const row = db.prepare("SELECT * FROM orders WHERE id = ?").get(metadataOrderId);
+    if (row) {
+      return row;
+    }
+  }
+  if (paymentId) {
+    const row = db.prepare("SELECT * FROM orders WHERE payment_id = ?").get(paymentId);
+    if (row) {
+      return row;
+    }
+  }
+  return null;
+}
+
+function applyYookassaWebhook(payment) {
+  const orderRow = findOrderForYookassaPayment(payment);
+  if (!orderRow) {
+    return null;
+  }
+  const paymentId = cleanText(payment?.id, 120);
+  const paymentStatus = cleanText(payment?.status, 64);
+  const confirmationUrl = cleanText(payment?.confirmation?.confirmation_url, 500);
+  const nextStatus = yookassaOrderStatus(paymentStatus, orderRow.status);
+  db.prepare(`
+    UPDATE orders
+    SET payment_id = ?, payment_url = ?, payment_status = ?, status = ?, updated_at = ?
+    WHERE id = ?
+  `).run(
+    paymentId || orderRow.payment_id || "",
+    confirmationUrl || orderRow.payment_url || "",
+    paymentStatus || orderRow.payment_status || "",
+    nextStatus,
+    nowIso(),
+    orderRow.id
+  );
+  return publicOrder(db.prepare("SELECT * FROM orders WHERE id = ?").get(orderRow.id));
+}
+
 function weightFromUnit(unit) {
   const text = String(unit || "").toLowerCase();
   const value = cleanNumber(text, 0);
@@ -1953,6 +2012,26 @@ app.post(["/api/orders", "/chat-api/orders"], async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+app.post(["/api/yookassa/webhook", "/chat-api/yookassa/webhook"], (req, res) => {
+  const event = cleanText(req.body?.event, 120);
+  const payment = req.body?.object;
+  if (!payment || payment.object !== "payment") {
+    return res.status(200).json({ ok: true, ignored: true });
+  }
+  const order = applyYookassaWebhook(payment);
+  return res.status(200).json({
+    ok: true,
+    event,
+    updated: Boolean(order),
+    order: order ? {
+      id: order.id,
+      publicId: order.publicId,
+      status: order.status,
+      paymentStatus: order.paymentStatus
+    } : null
+  });
 });
 
 app.get(["/api/admin/products", "/chat-api/admin/products"], requireAdmin, (_req, res) => {
