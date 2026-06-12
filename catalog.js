@@ -136,10 +136,22 @@
     return { subtotal, deliveryPrice, total: subtotal + deliveryPrice };
   }
 
+  function canCheckoutCartItem(item) {
+    const product = products.get(item.slug);
+    if (product) {
+      return canCheckoutProduct(product, item.unit);
+    }
+    return Number(item.price || 0) > 0;
+  }
+
   function addToCart(slug, unit) {
     const product = products.get(slug);
     if (!product) return;
     const option = priceOptions(product).find((item) => item.unit === unit) || firstOption(product);
+    if (!canCheckoutProduct(product, option.unit)) {
+      window.open(whatsappUrl(product, option.unit), "_blank", "noopener");
+      return;
+    }
     const key = `${slug}::${option.unit}`;
     const existing = state.cart.find((item) => item.key === key);
     if (existing) {
@@ -405,6 +417,12 @@
   }
 
   function renderCart() {
+    const nextCart = state.cart.filter(canCheckoutCartItem);
+    if (nextCart.length !== state.cart.length) {
+      state.cart = nextCart;
+      state.checkout.delivery = null;
+      saveCart();
+    }
     const count = state.cart.reduce((sum, item) => sum + item.quantity, 0);
     cartEls.fab.hidden = !canUseCheckoutPayment();
     cartEls.count.textContent = count;
