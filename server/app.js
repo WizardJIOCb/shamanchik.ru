@@ -599,9 +599,9 @@ function setSetting(key, value) {
 function storeSettingsPayload({ admin = false } = {}) {
   const deliveryEnabled = getSetting("delivery_enabled", "1") === "1";
   const paymentEnabled = getSetting("payment_enabled", "1") === "1";
-  const cdekFromLocationCode = getSetting("cdek_from_location_code", "");
-  const cdekSenderPointCode = getSetting("cdek_sender_point_code", CDEK_SENDER_POINT_CODE);
-  const cdekTariffCode = cleanInteger(getSetting("cdek_tariff_code", DEFAULT_CDEK_TARIFF_CODE), DEFAULT_CDEK_TARIFF_CODE);
+  const cdekFromLocationCode = getSetting("cdek_from_location_code", "") || process.env.CDEK_FROM_LOCATION_CODE || "";
+  const cdekSenderPointCode = getSetting("cdek_sender_point_code", "") || CDEK_SENDER_POINT_CODE;
+  const cdekTariffCode = cleanInteger(getSetting("cdek_tariff_code", "") || process.env.CDEK_TARIFF_CODE || DEFAULT_CDEK_TARIFF_CODE, DEFAULT_CDEK_TARIFF_CODE);
   const payload = {
     deliveryEnabled,
     paymentEnabled,
