@@ -1011,6 +1011,48 @@ function yookassaConfigured() {
   return Boolean(YOOKASSA_SHOP_ID && YOOKASSA_SECRET_KEY);
 }
 
+function yookassaReceiptCustomer(order) {
+  const email = cleanText(order.customerEmail, 160);
+  if (!email) {
+    throw new Error("Customer email is required for YooKassa receipt.");
+  }
+  const phone = cleanText(order.customerPhone, 40).replace(/[^\d+]/g, "");
+  const fullName = cleanText(order.customerName, 128);
+  return {
+    email,
+    ...(phone ? { phone } : {}),
+    ...(fullName ? { full_name: fullName } : {})
+  };
+}
+
+function yookassaReceiptItems(order) {
+  const items = order.items.map((item) => ({
+    description: cleanText(`${item.title}${item.unit ? `, ${item.unit}` : ""}`, 128),
+    quantity: Number(item.quantity).toFixed(3),
+    amount: {
+      value: Number(item.price || 0).toFixed(2),
+      currency: "RUB"
+    },
+    vat_code: 1,
+    payment_mode: "full_prepayment",
+    payment_subject: "commodity"
+  }));
+  if (order.deliveryPrice > 0) {
+    items.push({
+      description: "Доставка",
+      quantity: "1.000",
+      amount: {
+        value: Number(order.deliveryPrice || 0).toFixed(2),
+        currency: "RUB"
+      },
+      vat_code: 1,
+      payment_mode: "full_prepayment",
+      payment_subject: "service"
+    });
+  }
+  return items;
+}
+
 async function createYookassaPayment(order) {
   if (!yookassaConfigured()) {
     throw new Error("YooKassa credentials are not configured.");
@@ -1024,7 +1066,11 @@ async function createYookassaPayment(order) {
       return_url: `${SITE_URL}/payment.html?order=${encodeURIComponent(order.publicId)}`
     },
     description: `Order ${order.publicId} on shamanchik.ru`.slice(0, 128),
-    metadata: { orderId: String(order.id), publicId: order.publicId }
+    metadata: { orderId: String(order.id), publicId: order.publicId },
+    receipt: {
+      customer: yookassaReceiptCustomer(order),
+      items: yookassaReceiptItems(order)
+    }
   };
   const response = await fetch(`${YOOKASSA_API_URL}/payments`, {
     method: "POST",
@@ -1877,6 +1923,9 @@ app.post(["/api/orders", "/chat-api/orders"], async (req, res, next) => {
 
     let order = publicOrder(db.prepare("SELECT * FROM orders WHERE id = ?").get(Number(result.lastInsertRowid)));
     if (settings.paymentEnabled) {
+      if (!customerEmail) {
+        return res.status(400).json({ error: "Email is required for YooKassa receipt." });
+      }
       if (!yookassaConfigured()) {
         return res.status(503).json({
           error: "YooKassa is not configured.",

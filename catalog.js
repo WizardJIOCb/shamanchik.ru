@@ -48,6 +48,11 @@
     return Boolean(state.settings.paymentEnabled && state.settings.yookassaReady);
   }
 
+  function canCheckoutProduct(product, unit = "") {
+    const option = priceOptions(product).find((item) => item.unit === unit) || firstOption(product);
+    return canUseCheckoutPayment() && Number(option?.price || 0) > 0;
+  }
+
   function safeImageUrl(value) {
     const url = String(value || "").trim();
     if (/^(\/images\/|images\/|https?:\/\/)/i.test(url)) return url;
@@ -187,7 +192,7 @@
                 <label><span>Имя</span><input name="name" type="text" autocomplete="name" required></label>
                 <label><span>Телефон</span><input name="phone" type="tel" autocomplete="tel" required></label>
               </div>
-              <label><span>Email для чека</span><input name="email" type="email" autocomplete="email" placeholder="Можно добавить позже"></label>
+              <label><span>Email для чека</span><input name="email" type="email" autocomplete="email" placeholder="Обязателен для онлайн-оплаты"></label>
               <label><span>Комментарий</span><textarea name="comment" rows="3" placeholder="Удобное время, пожелания к заказу"></textarea></label>
               <section class="checkout-delivery" data-delivery-section>
                 <h3>Доставка CDEK</h3>
@@ -378,7 +383,7 @@
     modalEls.order.removeAttribute("href");
     modalEls.order.removeAttribute("target");
     modalEls.order.removeAttribute("rel");
-    if (!canUseCheckoutPayment()) {
+    if (!canCheckoutProduct(product)) {
       modalEls.order.textContent = "Купить";
       modalEls.order.href = whatsappUrl(product, firstOption(product)?.unit);
       modalEls.order.target = "_blank";
@@ -536,6 +541,10 @@
       showCheckoutError("ЮКасса появится после подключения ключей на сервере.");
       return;
     }
+    if (!String(form.get("email") || "").trim()) {
+      showCheckoutError("Укажите email для отправки чека ЮКассы.");
+      return;
+    }
     submit.disabled = true;
     submit.textContent = "Создаём заказ...";
     try {
@@ -565,8 +574,8 @@
     const addButton = event.target.closest("[data-cart-add]");
     if (addButton) {
       event.preventDefault();
-      if (!canUseCheckoutPayment()) {
-        const product = products.get(addButton.dataset.cartAdd);
+      const product = products.get(addButton.dataset.cartAdd);
+      if (!product || !canCheckoutProduct(product, addButton.dataset.cartUnit)) {
         if (product) window.open(whatsappUrl(product, addButton.dataset.cartUnit), "_blank", "noopener");
         return;
       }
