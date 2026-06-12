@@ -117,6 +117,11 @@ h2 {
   outline: none;
 }
 
+.admin-nav a.is-active {
+  border-color: rgba(240, 193, 119, 0.62);
+  background: rgba(201, 145, 72, 0.2);
+}
+
 .button--gold {
   border-color: rgba(240, 193, 119, 0.62);
   background: #a77736;
@@ -346,8 +351,16 @@ textarea:focus {
     max-height: 360px;
   }
 
+  .record-list {
+    max-height: 360px;
+  }
+
   .image-preview {
     flex-basis: auto;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -366,6 +379,19 @@ textarea:focus {
   .button,
   .admin-nav a {
     width: 100%;
+  }
+
+  .summary-grid,
+  .detail-item,
+  .detail-row,
+  .detail-toolbar,
+  .record-list__row {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-toolbar,
+  .record-list__row {
+    display: grid;
   }
 }
 
@@ -412,4 +438,183 @@ textarea:focus {
 .settings-flags span.is-missing {
   color: #ffd7cc;
   border-color: rgba(217, 120, 95, 0.5);
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  padding: 18px;
+}
+
+.summary-card {
+  display: grid;
+  gap: 8px;
+  min-height: 112px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(12, 15, 11, 0.84);
+}
+
+.summary-card span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.summary-card strong {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.record-list {
+  max-height: calc(100vh - 138px);
+  overflow: auto;
+  padding: 10px;
+}
+
+.record-list__item {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 12px;
+  color: inherit;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.record-list__item:hover,
+.record-list__item:focus-visible,
+.record-list__item.is-selected {
+  border-color: var(--line-strong);
+  background: rgba(240, 193, 119, 0.08);
+  outline: none;
+}
+
+.record-list__item > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.record-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.record-list__row strong {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  width: fit-content;
+  padding: 0 10px;
+  color: var(--muted);
+  border: 1px solid rgba(240, 193, 119, 0.2);
+  border-radius: 999px;
+  background: rgba(240, 193, 119, 0.06);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.status-pill.is-paid {
+  color: #dff2c7;
+  border-color: rgba(165, 211, 104, 0.48);
+}
+
+.status-pill.is-pending {
+  color: #ffe4b7;
+  border-color: rgba(240, 193, 119, 0.48);
+}
+
+.status-pill.is-canceled {
+  color: #ffd7cc;
+  border-color: rgba(217, 120, 95, 0.5);
+}
+
+.record-detail {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+}
+
+.detail-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.detail-section {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(12, 15, 11, 0.74);
+}
+
+.detail-section h3 {
+  margin: 0;
+  font-size: 24px;
+  font-family: "Cormorant Garamond", Georgia, serif;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.detail-row span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.detail-row strong {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.detail-items {
+  display: grid;
+  gap: 10px;
+}
+
+.detail-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(240, 193, 119, 0.12);
+  border-radius: 8px;
+  background: rgba(240, 193, 119, 0.04);
+}
+
+.detail-item strong {
+  font-size: 14px;
+}
+
+.detail-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.record-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
 }

@@ -362,7 +362,7 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.get(["/admin/products", "/admin/products/"], (req, res) => {
+function requireAdminPage(req, res, pagePath) {
   const session = getSession(req);
   if (!session) {
     return res.redirect("/chat");
@@ -370,7 +370,17 @@ app.get(["/admin/products", "/admin/products/"], (req, res) => {
   if (!session.isAdmin) {
     return res.status(403).type("text/plain; charset=utf-8").send("Доступ только для администратора.");
   }
-  return res.sendFile(path.join(ROOT_DIR, "admin", "products", "index.html"));
+  return res.sendFile(path.join(ROOT_DIR, pagePath));
+}
+
+app.get(["/admin/products", "/admin/products/"], (req, res) => {
+  return requireAdminPage(req, res, path.join("admin", "products", "index.html"));
+});
+app.get(["/admin/orders", "/admin/orders/"], (req, res) => {
+  return requireAdminPage(req, res, path.join("admin", "orders", "index.html"));
+});
+app.get(["/admin/payments", "/admin/payments/"], (req, res) => {
+  return requireAdminPage(req, res, path.join("admin", "payments", "index.html"));
 });
 app.use(express.static(ROOT_DIR, {
   extensions: ["html"]
