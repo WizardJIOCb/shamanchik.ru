@@ -346,6 +346,13 @@ els.form.elements.imageFile.addEventListener("change", () => {
   els.preview.style.setProperty("--image", `url('${URL.createObjectURL(file)}')`);
 });
 
+loadStoreSettings().catch((error) => {
+  if (els.settingsStatus) {
+    els.settingsStatus.textContent = "Не удалось загрузить настройки.";
+  }
+  showStatus(error.message, true);
+});
+
 loadProducts().catch((error) => {
   showStatus(error.message, true);
   fillForm(emptyProduct());
