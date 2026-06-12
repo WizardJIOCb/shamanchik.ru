@@ -376,6 +376,26 @@ select {
   font-size: 13px;
 }
 
+.article-panel .article-title {
+  margin-bottom: 18px;
+}
+
+.article-panel .meta-row {
+  margin-bottom: 18px;
+}
+
+.article-panel .cover-preview {
+  margin: 10px 0 20px;
+}
+
+.article-panel .reaction-row {
+  margin: 4px 0 26px;
+}
+
+.article-panel .article-body {
+  margin-top: 6px;
+}
+
 .filters-row,
 .section-actions,
 .detail-actions,
