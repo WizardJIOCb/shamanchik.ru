@@ -139,6 +139,13 @@ async function loadArticles() {
 }
 
 async function bootstrap() {
+  const url = new URL(location.href);
+  state.selectedSection = url.searchParams.get("section") || "";
+  state.type = url.searchParams.get("type") || "";
+  state.search = url.searchParams.get("q") || "";
+  els.typeFilter.value = state.type;
+  els.searchInput.value = state.search;
+
   const [meData, sectionData] = await Promise.all([
     optionalMe(),
     api("/chat-api/knowledge/sections")

@@ -50,6 +50,119 @@ const DEFAULT_SECTIONS = [
     sortOrder: 22
   }
 ];
+const DEFAULT_ARTICLES = [
+  {
+    sectionSlug: "praktiki",
+    type: "practice",
+    slug: "utrennyaya-praktika-sborki-vnimaniya",
+    title: "Утренняя практика сборки внимания",
+    excerpt: "Мягкий 12-минутный ритуал, который помогает войти в день спокойно, почувствовать тело и вернуть фокус.",
+    coverImageUrl: "/images/index2-hero.png",
+    seoTitle: "Утренняя практика сборки внимания",
+    seoDescription: "Короткая утренняя практика дыхания, внимания и телесной настройки перед началом дня.",
+    contentHtml: `
+      <h2>Зачем нужна эта практика</h2>
+      <p>Утром сознание ещё пластично. В первые минуты после пробуждения легче задать тон всему дню: не разбрасываться, не проваливаться в тревогу и не отдавать внимание хаосу.</p>
+      <blockquote>Практика не требует особых условий. Достаточно тишины, нескольких минут и готовности быть с собой честно.</blockquote>
+      <h2>Последовательность</h2>
+      <ol>
+        <li><strong>Сядьте ровно.</strong> Поставьте стопы на пол и почувствуйте опору.</li>
+        <li><strong>Сделайте 9 спокойных вдохов и выдохов.</strong> Не форсируйте дыхание, только наблюдайте его.</li>
+        <li><strong>Переведите внимание в тело.</strong> Заметьте лоб, грудь, живот, ладони, стопы.</li>
+        <li><strong>Спросите себя:</strong> что сейчас во мне главное и каким качеством я хочу наполнить день.</li>
+      </ol>
+      <h2>После практики</h2>
+      <p>Запишите одну простую опору на день: слово, образ, обещание себе. Это может быть спокойствие, ясность, устойчивость или доброта к себе.</p>
+    `
+  },
+  {
+    sectionSlug: "praktiki",
+    type: "practice",
+    slug: "dyhanie-dlya-snyatiya-vnutrennego-shuma",
+    title: "Дыхание для снятия внутреннего шума",
+    excerpt: "Практика для моментов, когда мыслей слишком много, а тело уже реагирует напряжением и раздражением.",
+    coverImageUrl: "/images/background.jpg",
+    seoTitle: "Дыхание для снятия внутреннего шума",
+    seoDescription: "Простая дыхательная практика, чтобы быстро снизить уровень внутреннего напряжения.",
+    contentHtml: `
+      <h2>Когда использовать</h2>
+      <p>Когда вас захлёстывает поток мыслей, появляется ощущение перегруза, а внимание скачет между задачами и тревогами.</p>
+      <h2>Как делать</h2>
+      <ul>
+        <li>Вдох на 4 счёта.</li>
+        <li>Пауза на 2 счёта.</li>
+        <li>Медленный выдох на 6 счётов.</li>
+        <li>Повторить 7 циклов подряд.</li>
+      </ul>
+      <p>Во время выдоха представляйте, что уходит не воздух, а лишний шум, внутренние спазмы и ненужные мысли.</p>
+      <h2>Важно</h2>
+      <p>Если кружится голова, уменьшите глубину дыхания. Здесь важна не сила, а ритм и мягкость.</p>
+    `
+  },
+  {
+    sectionSlug: "znaniya",
+    type: "knowledge",
+    slug: "kak-rabotat-s-sostoyaniem-a-ne-borotsya-s-soboy",
+    title: "Как работать с состоянием, а не бороться с собой",
+    excerpt: "Разбор подхода, при котором мы перестаём давить на себя и начинаем слышать, что именно пытается показать состояние.",
+    coverImageUrl: "/images/main-block-reference.png",
+    seoTitle: "Как работать с состоянием, а не бороться с собой",
+    seoDescription: "Практичный текст о том, как замечать состояние, читать его сигналы и не тратить силы на внутреннюю борьбу.",
+    contentHtml: `
+      <h2>Состояние — это сообщение</h2>
+      <p>Часто человек видит только внешнюю форму: тревога, злость, апатия, усталость. Но за каждой из них скрывается попытка психики и тела что-то сообщить.</p>
+      <p>Если сразу включать борьбу, сообщение теряется. Остаётся только сопротивление и истощение.</p>
+      <h2>Полезные вопросы</h2>
+      <ul>
+        <li>Что именно я сейчас чувствую в теле?</li>
+        <li>Чего я пытаюсь избежать?</li>
+        <li>В чём моя текущая перегрузка?</li>
+        <li>Какая минимальная поддержка мне нужна прямо сейчас?</li>
+      </ul>
+      <h2>Практический вывод</h2>
+      <p>Работа с состоянием начинается не с исправления себя, а с контакта. Только после контакта появляются точные действия.</p>
+    `
+  },
+  {
+    sectionSlug: "blogi-i-istorii",
+    type: "blog",
+    slug: "pochemu-ya-sozdal-razdel-praktik-i-statey",
+    title: "Почему я создал раздел практик и статей",
+    excerpt: "Личная заметка о том, зачем библиотека знаний нужна сообществу и почему важно делиться не только товарами, но и опытом.",
+    coverImageUrl: "/images/main-block-and-items+gallery.jpg",
+    seoTitle: "Почему я создал раздел практик и статей",
+    seoDescription: "Личная история о создании библиотеки практик, знаний и статей для сообщества Лавки Шамана.",
+    contentHtml: `
+      <h2>Не только продукты, но и путь</h2>
+      <p>Со временем стало ясно: людям нужна не просто карточка товара. Им нужен контекст, объяснение, ритуал применения, опыт других и чувство, что они идут не в одиночку.</p>
+      <h2>Зачем нужен этот раздел</h2>
+      <p>Здесь можно собирать наблюдения, делиться практиками, публиковать заметки и сохранять то, что обычно теряется в чатах и голосовых сообщениях.</p>
+      <p>Хочется, чтобы библиотека жила не как витрина, а как живое пространство с материалами, вопросами и комментариями.</p>
+    `
+  },
+  {
+    sectionSlug: "obzory-i-gidy",
+    type: "guide",
+    slug: "kak-vybirat-materialy-dlya-lichnoy-praktiki",
+    title: "Как выбирать материалы для личной практики",
+    excerpt: "Короткий гид по выбору материалов, когда вы только начинаете и хотите двигаться бережно, без перегруза.",
+    coverImageUrl: "/images/banner2.jpg",
+    seoTitle: "Как выбирать материалы для личной практики",
+    seoDescription: "Гид по выбору подходящих материалов и форматов практики для спокойного и осознанного старта.",
+    contentHtml: `
+      <h2>Начинайте с запроса, а не с количества</h2>
+      <p>Сначала ответьте себе, чего вы хотите больше всего: ясности, восстановления, устойчивости, энергии, сна, дисциплины или тишины.</p>
+      <h2>Три опоры выбора</h2>
+      <ol>
+        <li>Ваше текущее состояние.</li>
+        <li>Сколько ресурса у вас реально есть на практику.</li>
+        <li>Насколько выбранный формат вписывается в жизнь, а не ломает её.</li>
+      </ol>
+      <h2>Хороший старт</h2>
+      <p>Один материал для чтения, одна короткая практика и одна точка наблюдения за собой на неделю. Этого достаточно, чтобы увидеть первые изменения.</p>
+    `
+  }
+];
 
 function registerArticlesModule(config) {
   const {
@@ -175,6 +288,7 @@ function registerArticlesModule(config) {
   `);
 
   seedDefaultSections();
+  ensureDefaultArticles();
 
   const articleUpload = multer({
     storage: multer.diskStorage({
@@ -596,6 +710,72 @@ function registerArticlesModule(config) {
       const parent = findIdBySlug.get(section.parentSlug);
       const stamp = nowIso();
       insert.run(parent?.id || null, section.slug, section.title, section.description, section.sortOrder, stamp, stamp);
+    }
+  }
+
+  function ensureDefaultArticles() {
+    const existingUser = db.prepare(`
+      SELECT id, username, display_name AS displayName
+      FROM users
+      WHERE lower(username) IN ('wizardjiocb', 'shamanchik008')
+      ORDER BY id ASC
+      LIMIT 1
+    `).get() || db.prepare(`
+      SELECT id, username, display_name AS displayName
+      FROM users
+      ORDER BY id ASC
+      LIMIT 1
+    `).get();
+
+    if (!existingUser) {
+      return;
+    }
+
+    const sectionIdBySlug = new Map(
+      db.prepare("SELECT id, slug FROM article_sections").all().map((row) => [row.slug, row.id])
+    );
+    const existsBySlug = db.prepare("SELECT id FROM articles WHERE slug = ?");
+    const insert = db.prepare(`
+      INSERT INTO articles(
+        section_id,
+        author_user_id,
+        slug,
+        title,
+        excerpt,
+        cover_image_url,
+        type,
+        status,
+        content_html,
+        content_text,
+        seo_title,
+        seo_description,
+        published_at,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const article of DEFAULT_ARTICLES) {
+      if (existsBySlug.get(article.slug)) {
+        continue;
+      }
+      const stamp = nowIso();
+      insert.run(
+        sectionIdBySlug.get(article.sectionSlug) || null,
+        existingUser.id,
+        article.slug,
+        article.title,
+        article.excerpt,
+        article.coverImageUrl,
+        article.type,
+        sanitizeArticleHtml(article.contentHtml),
+        stripHtml(article.contentHtml),
+        article.seoTitle,
+        article.seoDescription,
+        stamp,
+        stamp,
+        stamp
+      );
     }
   }
 
