@@ -975,6 +975,8 @@ function registerArticlesModule(config) {
         s.slug AS sectionSlug,
         s.title AS sectionTitle,
         s.parent_id AS sectionParentId,
+        parent.slug AS sectionParentSlug,
+        parent.title AS sectionParentTitle,
         u.username,
         u.display_name AS displayName,
         (SELECT COUNT(*) FROM article_views av WHERE av.article_id = a.id) AS viewsCount,
@@ -983,6 +985,7 @@ function registerArticlesModule(config) {
         (SELECT COUNT(*) FROM article_attachments aa WHERE aa.article_id = a.id) AS attachmentsCount
       FROM articles a
       LEFT JOIN article_sections s ON s.id = a.section_id
+      LEFT JOIN article_sections parent ON parent.id = s.parent_id
       JOIN users u ON u.id = a.author_user_id
       ORDER BY COALESCE(a.published_at, a.updated_at) DESC, a.id DESC
     `).all();
@@ -992,7 +995,7 @@ function registerArticlesModule(config) {
       .filter((article) => {
         if (authorUserId && article.authorUserId !== authorUserId) return false;
         if (type && article.type !== normalizeArticleType(type)) return false;
-        if (sectionSlug && article.sectionSlug !== sectionSlug) return false;
+        if (sectionSlug && article.sectionSlug !== sectionSlug && article.sectionParentSlug !== sectionSlug) return false;
         if (q) {
           const haystack = `${article.title} ${article.excerpt} ${article.sectionTitle} ${article.author.displayName}`.toLowerCase();
           if (!haystack.includes(q.toLowerCase())) return false;
@@ -1027,6 +1030,8 @@ function registerArticlesModule(config) {
       sectionSlug: row.sectionSlug || "",
       sectionTitle: row.sectionTitle || "Без раздела",
       sectionParentId: row.sectionParentId || null,
+      sectionParentSlug: row.sectionParentSlug || "",
+      sectionParentTitle: row.sectionParentTitle || "",
       viewsCount: row.viewsCount || 0,
       commentsCount: row.commentsCount || 0,
       reactionsCount: row.reactionsCount || 0,
@@ -1068,6 +1073,8 @@ function registerArticlesModule(config) {
         s.slug AS sectionSlug,
         s.title AS sectionTitle,
         s.parent_id AS sectionParentId,
+        parent.slug AS sectionParentSlug,
+        parent.title AS sectionParentTitle,
         u.username,
         u.display_name AS displayName,
         (SELECT COUNT(*) FROM article_views av WHERE av.article_id = a.id) AS viewsCount,
@@ -1076,6 +1083,7 @@ function registerArticlesModule(config) {
         (SELECT COUNT(*) FROM article_attachments aa WHERE aa.article_id = a.id) AS attachmentsCount
       FROM articles a
       LEFT JOIN article_sections s ON s.id = a.section_id
+      LEFT JOIN article_sections parent ON parent.id = s.parent_id
       JOIN users u ON u.id = a.author_user_id
       WHERE a.id = ?
     `).get(articleId);
@@ -1104,6 +1112,8 @@ function registerArticlesModule(config) {
         s.slug AS sectionSlug,
         s.title AS sectionTitle,
         s.parent_id AS sectionParentId,
+        parent.slug AS sectionParentSlug,
+        parent.title AS sectionParentTitle,
         u.username,
         u.display_name AS displayName,
         (SELECT COUNT(*) FROM article_views av WHERE av.article_id = a.id) AS viewsCount,
@@ -1112,6 +1122,7 @@ function registerArticlesModule(config) {
         (SELECT COUNT(*) FROM article_attachments aa WHERE aa.article_id = a.id) AS attachmentsCount
       FROM articles a
       LEFT JOIN article_sections s ON s.id = a.section_id
+      LEFT JOIN article_sections parent ON parent.id = s.parent_id
       JOIN users u ON u.id = a.author_user_id
       WHERE a.slug = ?
     `).get(slug);
