@@ -363,6 +363,32 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
+const UTF8_CONTENT_TYPES = new Map([
+  [".html", "text/html; charset=utf-8"],
+  [".css", "text/css; charset=utf-8"],
+  [".js", "text/javascript; charset=utf-8"],
+  [".mjs", "text/javascript; charset=utf-8"],
+  [".json", "application/json; charset=utf-8"],
+  [".svg", "image/svg+xml; charset=utf-8"],
+  [".txt", "text/plain; charset=utf-8"]
+]);
+
+function setUtf8ContentType(res, filePath) {
+  const contentType = UTF8_CONTENT_TYPES.get(path.extname(filePath).toLowerCase());
+  if (contentType) {
+    res.setHeader("Content-Type", contentType);
+  }
+}
+
+function sendUtf8File(res, filePath) {
+  setUtf8ContentType(res, filePath);
+  return res.sendFile(filePath);
+}
+
+function setStaticUtf8Headers(res, filePath) {
+  setUtf8ContentType(res, filePath);
+}
+
 function requireAdminPage(req, res, pagePath) {
   const session = getSession(req);
   if (!session) {
@@ -371,7 +397,7 @@ function requireAdminPage(req, res, pagePath) {
   if (!session.isAdmin) {
     return res.status(403).type("text/plain; charset=utf-8").send("Доступ только для администратора.");
   }
-  return res.sendFile(path.join(ROOT_DIR, pagePath));
+  return sendUtf8File(res, path.join(ROOT_DIR, pagePath));
 }
 
 app.get(["/admin/products", "/admin/products/"], (req, res) => {
@@ -387,7 +413,8 @@ app.get(["/admin/payments", "/admin/payments/"], (req, res) => {
   return requireAdminPage(req, res, path.join("admin", "payments", "index.html"));
 });
 app.use(express.static(ROOT_DIR, {
-  extensions: ["html"]
+  extensions: ["html"],
+  setHeaders: setStaticUtf8Headers
 }));
 
 const upload = multer({
@@ -1847,17 +1874,19 @@ function toggleMessageReaction(messageId, emoji, actor) {
   };
 }
 
-app.use("/chat-assets", express.static(CHAT_DIR));
+app.use("/chat-assets", express.static(CHAT_DIR, {
+  setHeaders: setStaticUtf8Headers
+}));
 app.use("/chat-uploads", express.static(UPLOAD_DIR));
 
 for (const [routePath, fileName] of STATIC_PAGES.entries()) {
   app.get(routePath, (_req, res) => {
-    res.sendFile(path.join(ROOT_DIR, fileName));
+    sendUtf8File(res, path.join(ROOT_DIR, fileName));
   });
 }
 
 app.get(["/chat", "/chat/"], (_req, res) => {
-  res.sendFile(path.join(CHAT_DIR, "index.html"));
+  sendUtf8File(res, path.join(CHAT_DIR, "index.html"));
 });
 
 app.get(["/chat/admin", "/chat/admin/"], (req, res) => {
@@ -1868,7 +1897,7 @@ app.get(["/chat/admin", "/chat/admin/"], (req, res) => {
   if (!session.isAdmin) {
     return res.status(403).type("text/plain; charset=utf-8").send("Доступ только для администратора.");
   }
-  return res.sendFile(path.join(CHAT_DIR, "admin.html"));
+  return sendUtf8File(res, path.join(CHAT_DIR, "admin.html"));
 });
 
 app.get(["/api/products", "/chat-api/products"], (_req, res) => {

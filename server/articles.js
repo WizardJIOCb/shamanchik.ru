@@ -188,6 +188,11 @@ function registerArticlesModule(config) {
   const ARTICLE_UPLOAD_DIR = path.join(STORAGE_DIR, "article-uploads");
   fs.mkdirSync(ARTICLE_UPLOAD_DIR, { recursive: true });
 
+  function sendKnowledgeFile(res, fileName) {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.sendFile(path.join(KNOWLEDGE_DIR, fileName));
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS article_sections (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -306,7 +311,7 @@ function registerArticlesModule(config) {
   app.use("/article-uploads", require("express").static(ARTICLE_UPLOAD_DIR));
 
   app.get(["/knowledge", "/knowledge/"], (_req, res) => {
-    res.sendFile(path.join(KNOWLEDGE_DIR, "index.html"));
+    sendKnowledgeFile(res, "index.html");
   });
 
   app.get(["/articles", "/articles/"], (_req, res) => {
@@ -314,11 +319,11 @@ function registerArticlesModule(config) {
   });
 
   app.get(["/knowledge/compose", "/knowledge/compose/"], (_req, res) => {
-    res.sendFile(path.join(KNOWLEDGE_DIR, "compose.html"));
+    sendKnowledgeFile(res, "compose.html");
   });
 
   app.get("/knowledge/:slug", (_req, res) => {
-    res.sendFile(path.join(KNOWLEDGE_DIR, "article.html"));
+    sendKnowledgeFile(res, "article.html");
   });
 
   app.get(["/api/knowledge/sections", "/chat-api/knowledge/sections"], (_req, res) => {
