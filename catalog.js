@@ -237,6 +237,44 @@
     return `<div class="product-card__prices" data-product-open="${escapeHtml(product.slug)}" role="button" tabindex="0">${product.priceOptions.map((option) => `<span>${escapeHtml(formatPriceOption(option))}</span>`).join("")}</div>`;
   }
 
+  function categoryKey(value) {
+    return String(value || "").trim().toLocaleLowerCase("ru-RU");
+  }
+
+  function categoryMeta(category) {
+    const key = categoryKey(category);
+    const known = {
+      "зерновой мицелий": { title: "Зерновой мицелий", banner: "" },
+      "сома": { title: "Сома", banner: "images/banner1.jpg" },
+      "масла, пасты и мёд": { title: "Масла, пасты и мёд", banner: "" }
+    };
+    return {
+      key,
+      title: known[key]?.title || String(category || "Каталог"),
+      banner: known[key]?.banner || ""
+    };
+  }
+
+  function categoryOrder(key) {
+    const order = ["зерновой мицелий", "сома", "масла, пасты и мёд"];
+    const index = order.indexOf(key);
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+  }
+
+  function categoryHeading(title) {
+    return `
+      <div class="product-category-heading">
+        <h3>${escapeHtml(title)}</h3>
+      </div>`;
+  }
+
+  function categoryBanner(imageUrl) {
+    return `
+      <div class="product-category-banner" aria-hidden="true">
+        <img src="${escapeHtml(imageUrl)}" alt="">
+      </div>`;
+  }
+
   function productCard(product) {
     const description = product.shortDescription || product.description || product.composition || "";
     const option = firstOption(product);
@@ -257,17 +295,6 @@
       </article>`;
   }
 
-  function isSomaCategory(product) {
-    return String(product.category || "").trim().toLocaleLowerCase("ru-RU") === "сома";
-  }
-
-  function categoryBanner() {
-    return `
-      <div class="product-category-banner" aria-hidden="true">
-        <img src="images/banner1.jpg" alt="">
-      </div>`;
-  }
-
   function renderProducts(items) {
     if (!items.length) {
       grid.innerHTML = '<p class="product-card__empty">Каталог скоро появится.</p>';
@@ -275,12 +302,23 @@
     }
     products.clear();
     for (const product of items) products.set(product.slug, product);
-    let somaBannerRendered = false;
-    grid.innerHTML = items.map((product) => {
-      const banner = !somaBannerRendered && isSomaCategory(product) ? categoryBanner() : "";
-      if (banner) somaBannerRendered = true;
-      return `${banner}${productCard(product)}`;
-    }).join("");
+    const groups = new Map();
+    for (const product of items) {
+      const meta = categoryMeta(product.category);
+      if (!groups.has(meta.key)) {
+        groups.set(meta.key, { meta, items: [] });
+      }
+      groups.get(meta.key).items.push(product);
+    }
+    const markup = Array.from(groups.values())
+      .sort((left, right) => {
+        const rankDiff = categoryOrder(left.meta.key) - categoryOrder(right.meta.key);
+        if (rankDiff) return rankDiff;
+        return Number(left.items[0]?.sortOrder || 0) - Number(right.items[0]?.sortOrder || 0);
+      })
+      .map((group) => `${categoryHeading(group.meta.title)}${group.meta.banner ? categoryBanner(group.meta.banner) : ""}${group.items.map(productCard).join("")}`)
+      .join("");
+    grid.innerHTML = markup;
     grid.querySelectorAll("[data-product-image]").forEach((element) => {
       setImage(element, element.dataset.productImage);
       const product = products.get(element.dataset.productImageSlug);
