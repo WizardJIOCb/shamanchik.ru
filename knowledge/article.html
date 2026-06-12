@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Статья из библиотеки Лавки Шамана.">
+  <title>Статья | Лавка Шамана</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/images/icon-64.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/knowledge/knowledge.css">
+</head>
+<body>
+  <div class="knowledge-page">
+    <header class="knowledge-topbar">
+      <div class="knowledge-topbar__inner">
+        <a class="brand-link" href="/">Лавка Шамана</a>
+        <nav class="topbar-nav" aria-label="Навигация">
+          <a class="topbar-link" href="/knowledge">Все материалы</a>
+          <a class="topbar-link hidden" id="compose-link" href="/knowledge/compose">Мои статьи</a>
+          <button class="topbar-link" type="button" id="share-button">Поделиться</button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="article-shell">
+      <article class="article-panel">
+        <p class="eyebrow" id="article-eyebrow">Материал</p>
+        <h1 class="article-title" id="article-title">Загрузка...</h1>
+        <div class="meta-row" id="article-meta"></div>
+        <div class="cover-preview hidden" id="article-cover"></div>
+        <div class="reaction-row" id="article-reactions"></div>
+        <div class="article-body" id="article-body"></div>
+      </article>
+
+      <section class="article-panel">
+        <h2 class="panel-title">Файлы и медиа</h2>
+        <div class="attachments-grid" id="attachments-grid"></div>
+      </section>
+
+      <section class="comments-panel">
+        <div class="header-actions">
+          <div>
+            <p class="eyebrow">Обсуждение</p>
+            <h2 class="panel-title">Комментарии</h2>
+          </div>
+          <a class="action-button hidden" id="login-link" href="/chat">Войти, чтобы комментировать</a>
+        </div>
+        <form class="comment-form hidden" id="comment-form">
+          <input type="hidden" name="parentCommentId" id="parent-comment-id">
+          <textarea id="comment-content" maxlength="4000" placeholder="Поделитесь мнением, опытом или вопросом"></textarea>
+          <div class="detail-actions">
+            <button class="action-button action-button--gold" type="submit">Отправить комментарий</button>
+            <button class="action-button hidden" id="cancel-reply-button" type="button">Отменить ответ</button>
+          </div>
+        </form>
+        <div class="status-line" id="comment-status"></div>
+        <div class="comments-list" id="comments-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/knowledge/article.js"></script>
+</body>
+</html>

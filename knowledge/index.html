@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Практики, знания, статьи и блоги Лавки Шамана.">
+  <title>Практики и знания | Лавка Шамана</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/images/icon-64.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/knowledge/knowledge.css">
+</head>
+<body>
+  <div class="knowledge-page">
+    <header class="knowledge-topbar">
+      <div class="knowledge-topbar__inner">
+        <a class="brand-link" href="/">Лавка Шамана</a>
+        <nav class="topbar-nav" aria-label="Навигация">
+          <a class="topbar-link" href="/knowledge">Практики и знания</a>
+          <a class="topbar-link" href="/chat">Сообщество</a>
+          <a class="topbar-link hidden" id="compose-link" href="/knowledge/compose">Мои статьи</a>
+        </nav>
+      </div>
+    </header>
+
+    <section class="knowledge-hero">
+      <div class="knowledge-shell">
+        <p class="eyebrow">Библиотека сообщества</p>
+        <h1 class="page-title">Практики и знания</h1>
+        <p class="hero-copy">Статьи, блоги, практические заметки, гайды и материалы, которыми можно делиться ссылкой, обсуждать и дополнять через личный кабинет и админку.</p>
+      </div>
+    </section>
+
+    <main class="knowledge-shell">
+      <section class="filters-row">
+        <input class="article-search" id="search-input" type="search" placeholder="Поиск по статьям, авторам и разделам">
+        <select id="type-filter">
+          <option value="">Все форматы</option>
+          <option value="article">Статья</option>
+          <option value="practice">Практика</option>
+          <option value="knowledge">Знание</option>
+          <option value="guide">Гид</option>
+          <option value="blog">Блог</option>
+        </select>
+      </section>
+
+      <section class="knowledge-layout">
+        <aside class="knowledge-sidebar">
+          <h2 class="panel-title">Разделы</h2>
+          <div class="section-list" id="section-list"></div>
+        </aside>
+
+        <section class="knowledge-main">
+          <div class="header-actions">
+            <div>
+              <p class="eyebrow">Лента материалов</p>
+              <h2 class="panel-title" id="list-title">Все материалы</h2>
+            </div>
+            <a class="action-button action-button--gold hidden" id="new-article-link" href="/knowledge/compose">Добавить материал</a>
+          </div>
+          <div class="article-grid" id="article-grid"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="/knowledge/knowledge.js"></script>
+</body>
+</html>

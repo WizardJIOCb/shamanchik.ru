@@ -7,6 +7,7 @@ const multer = require("multer");
 const bcrypt = require("bcryptjs");
 const { DatabaseSync } = require("node:sqlite");
 const { WebSocketServer, WebSocket } = require("ws");
+const { registerArticlesModule } = require("./articles");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 const CHAT_DIR = path.join(ROOT_DIR, "chat");
@@ -375,6 +376,9 @@ function requireAdminPage(req, res, pagePath) {
 
 app.get(["/admin/products", "/admin/products/"], (req, res) => {
   return requireAdminPage(req, res, path.join("admin", "products", "index.html"));
+});
+app.get(["/admin/articles", "/admin/articles/"], (req, res) => {
+  return requireAdminPage(req, res, path.join("admin", "articles", "index.html"));
 });
 app.get(["/admin/orders", "/admin/orders/"], (req, res) => {
   return requireAdminPage(req, res, path.join("admin", "orders", "index.html"));
@@ -1698,6 +1702,25 @@ function authPayload(userId) {
     channels: listChannels(userId)
   };
 }
+
+registerArticlesModule({
+  app,
+  db,
+  ROOT_DIR,
+  STORAGE_DIR,
+  cleanText,
+  cleanInteger,
+  boolFromValue,
+  slugify,
+  nowIso,
+  parseCookies,
+  setCookie,
+  requireAuth,
+  requireAdmin,
+  getSession,
+  publicUserProfile,
+  isAdminUser
+});
 
 function deleteMessageAndBroadcast(message, actor) {
   db.prepare("DELETE FROM messages WHERE id = ?").run(message.id);

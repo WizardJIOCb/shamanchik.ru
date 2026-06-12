@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Редактор статей и блогов Лавки Шамана.">
+  <title>Редактор материалов | Лавка Шамана</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/images/icon-64.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/knowledge/knowledge.css">
+</head>
+<body>
+  <div class="knowledge-page">
+    <header class="knowledge-topbar">
+      <div class="knowledge-topbar__inner">
+        <a class="brand-link" href="/">Лавка Шамана</a>
+        <nav class="topbar-nav" aria-label="Навигация">
+          <a class="topbar-link" href="/knowledge">Библиотека</a>
+          <a class="topbar-link" href="/chat">Сообщество</a>
+          <a class="topbar-link hidden" id="admin-link" href="/admin/articles">Админка статей</a>
+        </nav>
+      </div>
+    </header>
+
+    <section class="knowledge-hero">
+      <div class="compose-shell">
+        <p class="eyebrow">Кабинет автора</p>
+        <h1 class="page-title">Редактор материалов</h1>
+        <p class="hero-copy">Создавайте статьи, блоги, практики и знания с форматированием, вложениями, видео, обложками и отправкой на публикацию.</p>
+      </div>
+    </section>
+
+    <main class="compose-shell">
+      <div class="status-line" id="compose-status"></div>
+      <section class="compose-layout">
+        <aside class="compose-sidebar">
+          <div class="header-actions">
+            <h2 class="panel-title">Мои материалы</h2>
+            <button class="action-button action-button--gold" type="button" id="new-article-button">Новый</button>
+          </div>
+          <div class="article-list" id="mine-list"></div>
+        </aside>
+
+        <section class="compose-main">
+          <form class="compose-form" id="compose-form">
+            <input type="hidden" name="id" id="article-id">
+            <div class="filters-row">
+              <input id="title-input" name="title" maxlength="180" placeholder="Название материала" required>
+              <select id="type-input" name="type">
+                <option value="article">Статья</option>
+                <option value="practice">Практика</option>
+                <option value="knowledge">Знание</option>
+                <option value="guide">Гид</option>
+                <option value="blog">Блог</option>
+              </select>
+            </div>
+
+            <div class="filters-row">
+              <select id="section-input" name="sectionId"></select>
+              <select id="status-input" name="status">
+                <option value="draft">Черновик</option>
+                <option value="review">На модерацию</option>
+                <option value="published">Опубликовано</option>
+                <option value="archived">Архив</option>
+              </select>
+            </div>
+
+            <textarea id="excerpt-input" name="excerpt" rows="3" maxlength="420" placeholder="Короткое описание для карточки и шаринга"></textarea>
+            <input id="cover-input" name="coverImageUrl" maxlength="600" placeholder="Ссылка на обложку или загрузите изображение ниже">
+
+            <div class="media-stack">
+              <div>
+                <p class="editor-toolbar-label">Панель форматирования</p>
+                <div class="toolbar">
+                  <button class="toolbar-button" type="button" data-cmd="bold"><strong>B</strong></button>
+                  <button class="toolbar-button" type="button" data-cmd="italic"><em>I</em></button>
+                  <button class="toolbar-button" type="button" data-cmd="insertUnorderedList">• List</button>
+                  <button class="toolbar-button" type="button" data-cmd="insertOrderedList">1. List</button>
+                  <button class="toolbar-button" type="button" data-block="h2">H2</button>
+                  <button class="toolbar-button" type="button" data-block="h3">H3</button>
+                  <button class="toolbar-button" type="button" data-block="blockquote">“”</button>
+                  <button class="toolbar-button" type="button" id="insert-link-button">Link</button>
+                </div>
+              </div>
+              <div class="editor-surface" id="editor" contenteditable="true" data-placeholder="Начните писать материал. Можно вставлять изображения, видео и ссылки."></div>
+            </div>
+
+            <div class="filters-row">
+              <input id="seo-title-input" name="seoTitle" maxlength="180" placeholder="SEO title">
+              <input id="seo-description-input" name="seoDescription" maxlength="260" placeholder="SEO description">
+            </div>
+
+            <div class="composer-panel">
+              <div class="header-actions">
+                <h2 class="panel-title">Вложения и медиа</h2>
+                <label class="action-button">
+                  <input class="hidden" id="attachment-input" type="file">
+                  <span>Загрузить файл</span>
+                </label>
+              </div>
+              <div class="status-line" id="upload-status"></div>
+              <div class="attachments-grid" id="attachments-grid"></div>
+            </div>
+
+            <div class="detail-actions">
+              <button class="action-button" type="button" id="save-draft-button">Сохранить</button>
+              <button class="action-button action-button--gold" type="button" id="submit-review-button">На модерацию</button>
+              <a class="action-button hidden" id="preview-link" href="#" target="_blank" rel="noopener noreferrer">Открыть материал</a>
+            </div>
+          </form>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="/knowledge/compose.js"></script>
+</body>
+</html>
