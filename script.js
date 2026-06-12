@@ -8,6 +8,7 @@ if (footer) {
     <nav class="footer__links" aria-label="Документы и контакты">
       <a href="/payment.html">Оплата и тарифы</a>
       <a href="/offer.html">Оферта</a>
+      <a href="/privacy.html">Персональные данные</a>
       <a href="/contacts.html">Контакты и реквизиты</a>
       <a href="${window.location.pathname === "/" ? "#top" : "/"}">${window.location.pathname === "/" ? "Наверх" : "Главная"}</a>
     </nav>
@@ -47,7 +48,10 @@ const openWhatsapp = (text) => {
 document.querySelectorAll(".product-card").forEach((card) => {
   const productName = card.dataset.product || "товар";
 
-  card.addEventListener("click", () => {
+  card.addEventListener("click", (event) => {
+    if (event.target.closest("a, button")) {
+      return;
+    }
     openWhatsapp(`Здравствуйте, хочу приобрести ${productName}.`);
   });
 

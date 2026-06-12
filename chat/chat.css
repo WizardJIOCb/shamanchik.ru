@@ -232,6 +232,29 @@ label {
   gap: 8px;
 }
 
+.consent-line {
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.consent-line input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--gold-bright);
+}
+
+.consent-line a {
+  color: var(--gold-bright);
+  text-decoration: underline;
+  text-decoration-color: rgba(241, 207, 135, 0.45);
+  text-underline-offset: 3px;
+}
+
 input,
 textarea {
   width: 100%;

@@ -659,6 +659,56 @@ section {
   gap: 18px;
 }
 
+.process-grid,
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.process-card,
+.trust-card {
+  padding: 24px;
+  border-radius: 22px;
+  border: 1px solid rgba(231, 183, 103, 0.18);
+  background: linear-gradient(180deg, rgba(39, 28, 18, 0.4), rgba(14, 16, 14, 0.72));
+}
+
+.process-card strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 16px;
+  border-radius: 50%;
+  color: #4a2809;
+  background: linear-gradient(180deg, rgba(255, 217, 125, 0.98), rgba(221, 159, 53, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 242, 215, 0.28);
+}
+
+.process-card h3,
+.trust-card h3 {
+  margin: 0 0 10px;
+  font-size: 1.45rem;
+  color: #f7d69c;
+}
+
+.process-card p,
+.trust-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.trust-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 24px;
+}
+
 .quote-card {
   padding: 24px;
   border-radius: 24px;
@@ -833,6 +883,8 @@ section {
   color: var(--text);
   font-family: "Cormorant Garamond", serif;
   font-size: clamp(1.3rem, 2vw, 1.8rem);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .reveal {
@@ -849,6 +901,8 @@ section {
 @media (max-width: 1080px) {
   .catalog-grid,
   .quotes,
+  .process-grid,
+  .trust-grid,
   .gallery-grid,
   .intro__grid,
   .contact {
