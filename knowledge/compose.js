@@ -73,6 +73,15 @@ function articleTypeLabel(type) {
   })[type] || "Материал";
 }
 
+function articleStatusLabel(status) {
+  return ({
+    draft: "Черновик",
+    review: "На модерации",
+    published: "Опубликовано",
+    archived: "Архив"
+  })[status] || "Без статуса";
+}
+
 function flattenSections(items, result = []) {
   for (const item of items) {
     result.push(item);
@@ -96,7 +105,7 @@ function renderMineList() {
   composeEls.mineList.innerHTML = composeState.articles.map((article) => `
     <article class="article-card ${composeState.current?.id === article.id ? "is-active" : ""}">
       <button class="section-link" type="button" data-article-id="${article.id}">
-        <span class="status-chip" data-status="${escapeHtml(article.status)}">${escapeHtml(article.status)}</span>
+        <span class="status-chip" data-status="${escapeHtml(article.status)}">${escapeHtml(articleStatusLabel(article.status))}</span>
         <strong>${escapeHtml(article.title)}</strong>
         <p>${escapeHtml(article.sectionTitle || "Без раздела")} • ${escapeHtml(articleTypeLabel(article.type))}</p>
       </button>
@@ -196,7 +205,7 @@ async function saveArticle(nextStatus = null) {
     composeState.articles.unshift(article);
   }
   fillForm(article);
-  setStatus(`Материал сохранён со статусом «${article.status}».`);
+  setStatus(`Материал сохранён со статусом «${articleStatusLabel(article.status)}».`);
 }
 
 function renderAttachments(items) {

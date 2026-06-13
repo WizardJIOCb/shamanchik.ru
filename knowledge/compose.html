@@ -49,29 +49,50 @@
         <section class="compose-main">
           <form class="compose-form" id="compose-form">
             <input type="hidden" name="id" id="article-id">
-            <div class="filters-row">
-              <input id="title-input" name="title" maxlength="180" placeholder="Название материала" required>
-              <select id="type-input" name="type">
-                <option value="article">Статья</option>
-                <option value="practice">Практика</option>
-                <option value="knowledge">Знание</option>
-                <option value="guide">Гид</option>
-                <option value="blog">Блог</option>
-              </select>
+
+            <div class="field-stack">
+              <label class="field-label" for="title-input">Название материала</label>
+              <input id="title-input" name="title" maxlength="180" placeholder="Например: Утренняя практика сборки внимания" required>
             </div>
 
             <div class="filters-row">
-              <select id="section-input" name="sectionId"></select>
+              <div class="field-stack">
+                <label class="field-label" for="type-input">Тип материала</label>
+                <select id="type-input" name="type">
+                  <option value="article">Статья</option>
+                  <option value="practice">Практика</option>
+                  <option value="knowledge">Знание</option>
+                  <option value="guide">Гид</option>
+                  <option value="blog">Блог</option>
+                </select>
+              </div>
+              <div class="field-stack">
+                <label class="field-label" for="section-input">Раздел</label>
+                <select id="section-input" name="sectionId"></select>
+              </div>
+            </div>
+
+            <div class="field-stack">
+              <label class="field-label" for="status-input">Статус публикации</label>
               <select id="status-input" name="status">
                 <option value="draft">Черновик</option>
                 <option value="review">На модерацию</option>
                 <option value="published">Опубликовано</option>
                 <option value="archived">Архив</option>
               </select>
+              <p class="field-hint">Черновик видите только вы, опубликованный материал появится в библиотеке и на сайте.</p>
             </div>
 
-            <textarea id="excerpt-input" name="excerpt" rows="3" maxlength="420" placeholder="Короткое описание для карточки и шаринга"></textarea>
-            <input id="cover-input" name="coverImageUrl" maxlength="600" placeholder="Ссылка на обложку или загрузите изображение ниже">
+            <div class="field-stack">
+              <label class="field-label" for="excerpt-input">Краткое описание</label>
+              <textarea id="excerpt-input" name="excerpt" rows="3" maxlength="420" placeholder="Этот текст показывается в карточках, списках и в шаринге ссылки"></textarea>
+            </div>
+
+            <div class="field-stack">
+              <label class="field-label" for="cover-input">Ссылка на обложку</label>
+              <input id="cover-input" name="coverImageUrl" maxlength="600" placeholder="Можно вставить URL вручную или загрузить изображение ниже">
+              <p class="field-hint">Если загрузите файл в блоке ниже, это поле заполнится автоматически.</p>
+            </div>
 
             <div class="composer-panel">
               <div class="header-actions">
@@ -99,12 +120,22 @@
                   <button class="toolbar-button" type="button" id="insert-link-button">Link</button>
                 </div>
               </div>
+              <div class="field-stack">
+                <label class="field-label" for="editor">Основной текст материала</label>
+                <p class="field-hint">Здесь находится полное содержание статьи: заголовки, абзацы, изображения, видео и ссылки.</p>
+              </div>
               <div class="editor-surface" id="editor" contenteditable="true" data-placeholder="Начните писать материал. Можно вставлять изображения, видео и ссылки."></div>
             </div>
 
             <div class="filters-row">
-              <input id="seo-title-input" name="seoTitle" maxlength="180" placeholder="SEO title">
-              <input id="seo-description-input" name="seoDescription" maxlength="260" placeholder="SEO description">
+              <div class="field-stack">
+                <label class="field-label" for="seo-title-input">SEO title</label>
+                <input id="seo-title-input" name="seoTitle" maxlength="180" placeholder="Отдельный заголовок для поисковиков, если нужен">
+              </div>
+              <div class="field-stack">
+                <label class="field-label" for="seo-description-input">SEO description</label>
+                <input id="seo-description-input" name="seoDescription" maxlength="260" placeholder="Краткое описание для поисковых систем">
+              </div>
             </div>
 
             <div class="composer-panel">

@@ -306,6 +306,24 @@ select {
   gap: 12px;
 }
 
+.field-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.field-label {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.field-hint {
+  margin: 0;
+  color: var(--quiet);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .section-card,
 .article-card,
 .attachment-card,
