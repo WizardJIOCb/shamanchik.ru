@@ -185,6 +185,9 @@ select {
   padding: 0 16px;
   font-size: 14px;
   font-weight: 600;
+  width: auto;
+  flex: 0 0 auto;
+  align-self: flex-start;
 }
 
 .action-button--danger {
@@ -757,6 +760,10 @@ select {
   .topbar-link,
   .action-button {
     width: 100%;
+  }
+
+  #new-article-link {
+    width: auto;
   }
 
   .reply-list {
