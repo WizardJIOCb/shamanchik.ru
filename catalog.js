@@ -263,7 +263,11 @@
     const known = {
       "зерновой мицелий": { title: "Зерновой мицелий", banner: "" },
       "сома": { title: "Сома", banner: "images/banner1.jpg" },
-      "масла, пасты и мёд": { title: "Масла, пасты и мёд", banner: "" }
+      "плодовые тела": { title: "Плодовые тела", banner: "images/5292189051106566349.jpg" },
+      "мази": { title: "Грибные мази", banner: "images/5292189051106566348.jpg" },
+      "масла": { title: "Сыродавленные масла", banner: "images/5292189051106566347.jpg" },
+      "масла, пасты и мёд": { title: "Масла, пасты и мёд", banner: "" },
+      "медовая продукция": { title: "Медовая продукция", banner: "" }
     };
     return {
       key,
@@ -273,7 +277,15 @@
   }
 
   function categoryOrder(key) {
-    const order = ["зерновой мицелий", "сома", "масла, пасты и мёд"];
+    const order = [
+      "зерновой мицелий",
+      "сома",
+      "плодовые тела",
+      "мази",
+      "масла",
+      "масла, пасты и мёд",
+      "медовая продукция"
+    ];
     const index = order.indexOf(key);
     return index === -1 ? Number.MAX_SAFE_INTEGER : index;
   }
