@@ -308,6 +308,25 @@ function registerArticlesModule(config) {
     limits: { fileSize: MAX_ARTICLE_FILE_SIZE }
   });
 
+  const articleCoverUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, ARTICLE_UPLOAD_DIR),
+      filename: (_req, file, cb) => {
+        const safeBase = String(file.originalname || "cover").replace(/[^a-zA-Z0-9._-]/g, "_");
+        const ext = path.extname(safeBase).slice(0, 12) || ".jpg";
+        const name = path.basename(safeBase, ext).slice(0, 60) || "cover";
+        cb(null, `${Date.now()}-${crypto.randomUUID()}-${name}${ext}`);
+      }
+    }),
+    fileFilter: (_req, file, cb) => {
+      if (!String(file.mimetype || "").startsWith("image/")) {
+        return cb(new Error("Разрешены только изображения для обложки."));
+      }
+      return cb(null, true);
+    },
+    limits: { fileSize: MAX_ARTICLE_FILE_SIZE }
+  });
+
   app.use("/article-uploads", require("express").static(ARTICLE_UPLOAD_DIR));
 
   app.get(["/knowledge", "/knowledge/"], (_req, res) => {
@@ -529,6 +548,35 @@ function registerArticlesModule(config) {
     );
     res.status(201).json({
       attachment: getArticleAttachment(Number(attachment.lastInsertRowid))
+    });
+  });
+
+  app.post("/chat-api/knowledge/articles/:articleId/cover", requireAuth, articleCoverUpload.single("file"), (req, res) => {
+    const articleId = Number(req.params.articleId);
+    const article = getArticleById(articleId, req.user);
+    if (!article) {
+      if (req.file?.path) {
+        fs.unlink(req.file.path, () => {});
+      }
+      return res.status(404).json({ error: "Статья не найдена." });
+    }
+    if (!canEditArticle(article, req.user)) {
+      if (req.file?.path) {
+        fs.unlink(req.file.path, () => {});
+      }
+      return res.status(403).json({ error: "Недостаточно прав для загрузки обложки." });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: "Файл обложки обязателен." });
+    }
+
+    const coverImageUrl = `/article-uploads/${path.basename(req.file.path)}`;
+    db.prepare("UPDATE articles SET cover_image_url = ?, updated_at = ? WHERE id = ?")
+      .run(coverImageUrl, nowIso(), articleId);
+
+    return res.status(201).json({
+      article: withArticleDetails(getArticleById(articleId, req.user), req.user),
+      coverImageUrl
     });
   });
 

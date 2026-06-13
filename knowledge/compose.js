@@ -16,6 +16,9 @@ const composeEls = {
   statusSelect: document.getElementById("status-input"),
   excerpt: document.getElementById("excerpt-input"),
   cover: document.getElementById("cover-input"),
+  coverFileInput: document.getElementById("cover-file-input"),
+  coverPreview: document.getElementById("cover-preview"),
+  coverUploadStatus: document.getElementById("cover-upload-status"),
   editor: document.getElementById("editor"),
   seoTitle: document.getElementById("seo-title-input"),
   seoDescription: document.getElementById("seo-description-input"),
@@ -137,6 +140,7 @@ function fillForm(article) {
   composeEls.seoDescription.value = article.seoDescription || "";
   composeEls.previewLink.classList.toggle("hidden", !article.slug);
   composeEls.previewLink.href = article.slug ? `/knowledge/${encodeURIComponent(article.slug)}` : "#";
+  renderCoverPreview(article.coverImageUrl || "");
   renderAttachments(article.attachments || []);
   renderMineList();
 }
@@ -226,6 +230,25 @@ function renderAttachments(items) {
   });
 }
 
+function renderCoverPreview(url) {
+  const safeUrl = String(url || "").trim();
+  if (!safeUrl) {
+    composeEls.coverPreview.classList.add("hidden");
+    composeEls.coverPreview.innerHTML = "";
+    return;
+  }
+
+  const escapedUrl = escapeHtml(safeUrl);
+  composeEls.coverPreview.classList.remove("hidden");
+  composeEls.coverPreview.innerHTML = `
+    <img src="${escapedUrl}" alt="Обложка статьи">
+    <div class="inline-card">
+      <strong>Текущая обложка</strong>
+      <p class="muted-copy">${escapedUrl}</p>
+    </div>
+  `;
+}
+
 function insertHtml(html) {
   composeEls.editor.focus();
   document.execCommand("insertHTML", false, html);
@@ -258,6 +281,29 @@ async function uploadAttachment(file) {
   composeState.current.attachments = [...(composeState.current.attachments || []), data.attachment];
   renderAttachments(composeState.current.attachments);
   setStatus("Файл загружен. Можно вставить его в текст.", false, composeEls.uploadStatus);
+}
+
+async function uploadCover(file) {
+  if (!file) return;
+  if (!composeState.current?.id) {
+    await saveArticle("draft");
+  }
+  const body = new FormData();
+  body.append("file", file);
+  setStatus("Загружаю обложку...", false, composeEls.coverUploadStatus);
+  const data = await api(`/chat-api/knowledge/articles/${composeState.current.id}/cover`, {
+    method: "POST",
+    body
+  });
+  const article = data.article;
+  const index = composeState.articles.findIndex((item) => item.id === article.id);
+  if (index >= 0) {
+    composeState.articles[index] = article;
+  } else {
+    composeState.articles.unshift(article);
+  }
+  fillForm(article);
+  setStatus("Обложка загружена и привязана к статье.", false, composeEls.coverUploadStatus);
 }
 
 function adjustStatusOptions() {
@@ -339,6 +385,19 @@ composeEls.attachmentInput.addEventListener("change", async () => {
   } catch (error) {
     setStatus(error.message, true, composeEls.uploadStatus);
   }
+});
+
+composeEls.coverFileInput.addEventListener("change", async () => {
+  try {
+    await uploadCover(composeEls.coverFileInput.files[0]);
+    composeEls.coverFileInput.value = "";
+  } catch (error) {
+    setStatus(error.message, true, composeEls.coverUploadStatus);
+  }
+});
+
+composeEls.cover.addEventListener("input", () => {
+  renderCoverPreview(composeEls.cover.value);
 });
 
 bootstrap().catch((error) => {

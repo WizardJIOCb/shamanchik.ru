@@ -73,6 +73,18 @@
             <textarea id="excerpt-input" name="excerpt" rows="3" maxlength="420" placeholder="Короткое описание для карточки и шаринга"></textarea>
             <input id="cover-input" name="coverImageUrl" maxlength="600" placeholder="Ссылка на обложку или загрузите изображение ниже">
 
+            <div class="composer-panel">
+              <div class="header-actions">
+                <h2 class="panel-title">Обложка</h2>
+                <label class="action-button">
+                  <input class="hidden" id="cover-file-input" type="file" accept="image/*">
+                  <span>Загрузить обложку</span>
+                </label>
+              </div>
+              <div class="status-line" id="cover-upload-status"></div>
+              <div class="cover-preview hidden" id="cover-preview"></div>
+            </div>
+
             <div class="media-stack">
               <div>
                 <p class="editor-toolbar-label">Панель форматирования</p>
