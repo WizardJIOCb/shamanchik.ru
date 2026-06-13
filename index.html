@@ -1399,7 +1399,7 @@
       box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
     }
 
-    .faq-group summary {
+    .faq-group > summary {
       position: relative;
       display: flex;
       align-items: center;
@@ -1410,7 +1410,7 @@
       list-style: none;
     }
 
-    .faq-group summary::-webkit-details-marker {
+    .faq-group > summary::-webkit-details-marker {
       display: none;
     }
 
@@ -1422,7 +1422,7 @@
       text-transform: uppercase;
     }
 
-    .faq-group summary::after {
+    .faq-group > summary::after {
       content: "";
       position: absolute;
       right: 0;
@@ -1439,7 +1439,7 @@
       transition: background-color 160ms ease, border-color 160ms ease;
     }
 
-    .faq-group[open] summary::after {
+    .faq-group[open] > summary::after {
       background:
         rgba(201, 145, 72, 0.12)
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 8h12' stroke='%23efc17d' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E")
