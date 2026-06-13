@@ -1018,7 +1018,6 @@ function registerArticlesModule(config) {
         if (includeAllStatuses) return true;
         if (article.isPublished) return true;
         if (includeOwnDrafts && viewer && article.authorUserId === viewer.id) return true;
-        if (viewer && viewer.isAdmin) return true;
         return false;
       });
   }
