@@ -180,6 +180,13 @@ select {
     0 0 0 1px rgba(255, 226, 172, 0.2);
 }
 
+#new-article-link {
+  min-height: 38px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .action-button--danger {
   border-color: rgba(201, 117, 102, 0.55);
   color: #ffd8d0;
