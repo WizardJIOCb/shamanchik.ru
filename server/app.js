@@ -32,7 +32,8 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const REACTION_OPTIONS = ["🍄", "🌿", "🔥", "😀", "😌", "😍", "😎", "😂", "😇", "🤝"];
 const ADMIN_USERNAMES = new Set([
   "wizardjiocb",
-  "shamanchik008"
+  "shamanchik008",
+  "shamanchik007"
 ]);
 const GRAIN_MYCELIUM_PRICE_OPTIONS = [
   { unit: "100 г", price: 800 },
