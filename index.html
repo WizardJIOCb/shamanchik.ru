@@ -1308,6 +1308,97 @@
       object-fit: contain;
     }
 
+    .faq {
+      display: grid;
+      gap: 22px;
+    }
+
+    .faq__intro {
+      max-width: 760px;
+      margin: 12px auto 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    .faq-group {
+      display: grid;
+      gap: 12px;
+      padding: 24px;
+      border: 1px solid rgba(216, 164, 83, 0.18);
+      border-radius: 24px;
+      background:
+        linear-gradient(180deg, rgba(11, 15, 12, 0.96), rgba(9, 12, 10, 0.88)),
+        rgba(9, 12, 10, 0.88);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+    }
+
+    .faq-group__title {
+      margin: 0 0 6px;
+      color: #e7bf86;
+      font-size: clamp(24px, 2.6vw, 30px);
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .faq-item {
+      overflow: hidden;
+      border: 1px solid rgba(240, 193, 119, 0.14);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.02);
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .faq-item[open] {
+      border-color: rgba(240, 193, 119, 0.34);
+      background: rgba(240, 193, 119, 0.06);
+    }
+
+    .faq-item:hover,
+    .faq-item:focus-within {
+      border-color: rgba(240, 193, 119, 0.28);
+      transform: translateY(-1px);
+    }
+
+    .faq-item summary {
+      position: relative;
+      display: block;
+      padding: 16px 54px 16px 18px;
+      color: #fff1da;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.45;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .faq-item summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .faq-item summary::after {
+      content: "+";
+      position: absolute;
+      right: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #efbf79;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .faq-item[open] summary::after {
+      content: "−";
+    }
+
+    .faq-item p {
+      margin: 0;
+      padding: 0 18px 18px;
+      color: rgba(242, 228, 204, 0.82);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
     .footer {
       background: #080a08;
       border-top: 1px solid rgba(216, 164, 83, 0.2);
@@ -1966,6 +2057,7 @@
           <a href="#articles">Статьи</a>
           <a href="#community">Сообщество</a>
           <a href="#about">Обо мне</a>
+          <a href="#faq">FAQ</a>
         </nav>
         <div class="socials" aria-label="Аккаунт и корзина">
           <div class="site-account" id="site-account"></div>
@@ -2182,6 +2274,86 @@
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section class="section" id="faq" aria-labelledby="faq-title">
+        <div class="faq">
+          <div class="section__head section__head--center">
+            <div>
+              <h2 class="section__title" id="faq-title">FAQ</h2>
+              <p class="faq__intro">Собрали основные вопросы по продукции, Соме, плодовым телам, зерновому мицелию, мазям и маслам. Ответы раскрываются по клику.</p>
+            </div>
+          </div>
+
+          <section class="faq-group" aria-labelledby="faq-products-title">
+            <h3 class="faq-group__title" id="faq-products-title">FAQ по продукции</h3>
+            <details class="faq-item"><summary>Легальна ли продукция Лавки Шамана?</summary><p>Да. Вся продукция, представленная в Лавке Шамана, реализуется в рамках действующего законодательства.</p></details>
+            <details class="faq-item"><summary>Является ли продукция лекарственным средством?</summary><p>Нет. Вся продукция представлена исключительно как пищевая, косметическая или ознакомительная продукция и не является лекарственным средством.</p></details>
+            <details class="faq-item"><summary>Может ли продукция заменить лечение?</summary><p>Нет. Продукция не предназначена для лечения, диагностики или профилактики заболеваний.</p></details>
+            <details class="faq-item"><summary>Есть ли гарантированный результат?</summary><p>Нет. Опыт использования всегда индивидуален.</p></details>
+            <details class="faq-item"><summary>Почему отзывы людей отличаются?</summary><p>Каждый человек уникален. Опыт, образ жизни, питание, возраст и множество других факторов могут влиять на восприятие продукции.</p></details>
+            <details class="faq-item"><summary>Можно ли использовать несколько продуктов одновременно?</summary><p>Да. Многие продукты можно сочетать между собой.</p></details>
+            <details class="faq-item"><summary>Как подобрать подходящий продукт?</summary><p>Изучите описание продукции или обратитесь за консультацией.</p></details>
+            <details class="faq-item"><summary>Есть ли возрастные ограничения?</summary><p>Продукция предназначена для совершеннолетних лиц.</p></details>
+            <details class="faq-item"><summary>Есть ли противопоказания?</summary><p>При наличии заболеваний, беременности, грудном вскармливании или приёме лекарственных препаратов рекомендуется проконсультироваться со специалистом.</p></details>
+            <details class="faq-item"><summary>Почему цвет и вкус продукции могут отличаться?</summary><p>Натуральное сырьё может незначительно отличаться от партии к партии.</p></details>
+          </section>
+
+          <section class="faq-group" aria-labelledby="faq-soma-title">
+            <h3 class="faq-group__title" id="faq-soma-title">FAQ по Соме</h3>
+            <details class="faq-item"><summary>Что такое Сома?</summary><p>Сома представляет собой водно-лимонный экстракт грибного сырья.</p></details>
+            <details class="faq-item"><summary>Является ли Сома лекарственным средством?</summary><p>Нет.</p></details>
+            <details class="faq-item"><summary>Есть ли спирт в составе?</summary><p>Нет.</p></details>
+            <details class="faq-item"><summary>Чем отличается Сома от сухого сырья?</summary><p>Сома представляет собой готовый водно-лимонный экстракт.</p></details>
+            <details class="faq-item"><summary>Как принимать Сому?</summary><p>Универсальной схемы не существует. Всё индивидуально. Каждый человек самостоятельно подбирает комфортный объём.</p></details>
+            <details class="faq-item"><summary>Сколько принимать за один раз?</summary><p>Обычно люди используют от 50 до 150 мл, однако каждый подбирает объём индивидуально.</p></details>
+            <details class="faq-item"><summary>Нужно ли начинать с малого количества?</summary><p>Да. Знакомство с новым продуктом рекомендуется начинать постепенно.</p></details>
+            <details class="faq-item"><summary>Можно ли принимать ежедневно?</summary><p>Каждый принимает решение самостоятельно исходя из собственного опыта.</p></details>
+            <details class="faq-item"><summary>В какое время лучше принимать?</summary><p>Универсального времени не существует.</p></details>
+            <details class="faq-item"><summary>Натощак или после еды?</summary><p>Каждый выбирает комфортный для себя вариант.</p></details>
+            <details class="faq-item"><summary>Как хранить Сому?</summary><p>После вскрытия рекомендуется хранить в холодильнике.</p></details>
+            <details class="faq-item"><summary>Можно ли смешивать Красную и Пантерную Сому?</summary><p>Да.</p></details>
+            <details class="faq-item"><summary>Чем отличается Красная Сома?</summary><p>Красная Сома традиционно используется людьми для гармонизации состояния и спокойного взаимодействия с практиками.</p></details>
+            <details class="faq-item"><summary>Чем отличается Пантерная Сома?</summary><p>Пантерная Сома традиционно используется людьми, которые отмечают более выраженное состояние внутренней концентрации и энергии.</p></details>
+            <details class="faq-item"><summary>Чем отличается Красно-пантерная Сома?</summary><p>Красно-пантерная Сома объединяет свойства обоих видов.</p></details>
+            <details class="faq-item"><summary>Что делать, если ничего не почувствовал?</summary><p>Опыт использования индивидуален. Не существует гарантированного или одинакового для всех результата.</p></details>
+          </section>
+
+          <section class="faq-group" aria-labelledby="faq-fruiting-title">
+            <h3 class="faq-group__title" id="faq-fruiting-title">FAQ по плодовым телам</h3>
+            <details class="faq-item"><summary>Что такое плодовые тела?</summary><p>Это непосредственно сам гриб в привычном понимании.</p></details>
+            <details class="faq-item"><summary>Какие плодовые тела представлены?</summary><p>Ежовик гребенчатый, Рейши, Шиитаке, Мейтаке, Кордицепс и другие виды, представленные в каталоге.</p></details>
+            <details class="faq-item"><summary>Как принимать плодовые тела?</summary><p>Согласно рекомендациям на странице товара.</p></details>
+            <details class="faq-item"><summary>Можно ли добавлять в пищу?</summary><p>Да.</p></details>
+            <details class="faq-item"><summary>Как хранить плодовые тела?</summary><p>В сухом месте без доступа влаги.</p></details>
+            <details class="faq-item"><summary>Чем плодовые тела отличаются от зернового мицелия?</summary><p>Это разные формы грибного сырья.</p></details>
+          </section>
+
+          <section class="faq-group" aria-labelledby="faq-mycelium-title">
+            <h3 class="faq-group__title" id="faq-mycelium-title">FAQ по зерновому мицелию</h3>
+            <details class="faq-item"><summary>Что такое зерновой мицелий?</summary><p>Это мицелий гриба, выращенный на зерновой питательной среде.</p></details>
+            <details class="faq-item"><summary>Как принимать зерновой мицелий?</summary><p>Обычно используют от 2 до 4 граммов в день, если иное не указано на странице товара.</p></details>
+            <details class="faq-item"><summary>Можно ли добавлять в напитки?</summary><p>Да.</p></details>
+            <details class="faq-item"><summary>Можно ли добавлять в еду?</summary><p>Да.</p></details>
+            <details class="faq-item"><summary>Как хранить?</summary><p>В сухом месте.</p></details>
+            <details class="faq-item"><summary>Чем отличается от плодовых тел?</summary><p>Это разные формы грибного сырья.</p></details>
+          </section>
+
+          <section class="faq-group" aria-labelledby="faq-ointments-title">
+            <h3 class="faq-group__title" id="faq-ointments-title">FAQ по грибным мазям</h3>
+            <details class="faq-item"><summary>Для чего предназначены грибные мази?</summary><p>Для наружного применения.</p></details>
+            <details class="faq-item"><summary>Можно ли принимать внутрь?</summary><p>Нет.</p></details>
+            <details class="faq-item"><summary>Как использовать мази?</summary><p>Наносить наружно на чистую кожу.</p></details>
+            <details class="faq-item"><summary>Как часто использовать?</summary><p>По мере необходимости.</p></details>
+            <details class="faq-item"><summary>Как хранить?</summary><p>В прохладном месте.</p></details>
+          </section>
+
+          <section class="faq-group" aria-labelledby="faq-oils-title">
+            <h3 class="faq-group__title" id="faq-oils-title">FAQ по маслам</h3>
+            <details class="faq-item"><summary>Как принимать масла?</summary><p>Согласно рекомендациям на упаковке.</p></details>
+            <details class="faq-item"><summary>Можно ли сочетать с другой продукцией?</summary><p>Да.</p></details>
+          </section>
         </div>
       </section>
     </main>
