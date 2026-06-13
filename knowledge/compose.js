@@ -225,6 +225,7 @@ function renderAttachments(items) {
         <a class="attachment-link" href="${item.fileUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.fileName)}</a>
         <div class="detail-actions">
           <button class="action-button" type="button" data-insert="${item.id}">Вставить в текст</button>
+          <button class="action-button action-button--danger" type="button" data-delete-attachment="${item.id}">Удалить</button>
         </div>
       </article>
     `;
@@ -235,6 +236,17 @@ function renderAttachments(items) {
       const attachment = (composeState.current?.attachments || []).find((item) => item.id === Number(button.dataset.insert));
       if (!attachment) return;
       insertAttachmentIntoEditor(attachment);
+    });
+  });
+
+  composeEls.attachmentGrid.querySelectorAll("[data-delete-attachment]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const attachmentId = Number(button.dataset.deleteAttachment);
+      try {
+        await deleteAttachment(attachmentId);
+      } catch (error) {
+        setStatus(error.message, true, composeEls.uploadStatus);
+      }
     });
   });
 }
@@ -290,6 +302,23 @@ async function uploadAttachment(file) {
   composeState.current.attachments = [...(composeState.current.attachments || []), data.attachment];
   renderAttachments(composeState.current.attachments);
   setStatus("Файл загружен. Можно вставить его в текст.", false, composeEls.uploadStatus);
+}
+
+async function deleteAttachment(attachmentId) {
+  if (!composeState.current?.id || !attachmentId) return;
+  setStatus("Удаляю вложение...", false, composeEls.uploadStatus);
+  const data = await api(`/chat-api/knowledge/articles/${composeState.current.id}/attachments/${attachmentId}`, {
+    method: "DELETE"
+  });
+  const article = data.article;
+  const index = composeState.articles.findIndex((item) => item.id === article.id);
+  if (index >= 0) {
+    composeState.articles[index] = article;
+  } else {
+    composeState.articles.unshift(article);
+  }
+  fillForm(article);
+  setStatus("Вложение удалено.", false, composeEls.uploadStatus);
 }
 
 async function uploadCover(file) {

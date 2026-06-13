@@ -551,6 +551,37 @@ function registerArticlesModule(config) {
     });
   });
 
+  app.delete("/chat-api/knowledge/articles/:articleId/attachments/:attachmentId", requireAuth, (req, res) => {
+    const articleId = Number(req.params.articleId);
+    const attachmentId = Number(req.params.attachmentId);
+    const article = getArticleById(articleId, req.user);
+    if (!article) {
+      return res.status(404).json({ error: "Статья не найдена." });
+    }
+    if (!canEditArticle(article, req.user)) {
+      return res.status(403).json({ error: "Недостаточно прав для удаления вложения." });
+    }
+
+    const attachment = db.prepare(`
+      SELECT id, article_id AS articleId, file_url AS fileUrl
+      FROM article_attachments
+      WHERE id = ?
+    `).get(attachmentId);
+    if (!attachment || Number(attachment.articleId) !== articleId) {
+      return res.status(404).json({ error: "Вложение не найдено." });
+    }
+
+    db.prepare("DELETE FROM article_attachments WHERE id = ?").run(attachmentId);
+    if (attachment.fileUrl) {
+      fs.unlink(path.join(ARTICLE_UPLOAD_DIR, path.basename(attachment.fileUrl)), () => {});
+    }
+
+    return res.json({
+      ok: true,
+      article: withArticleDetails(getArticleById(articleId, req.user), req.user)
+    });
+  });
+
   app.post("/chat-api/knowledge/articles/:articleId/cover", requireAuth, articleCoverUpload.single("file"), (req, res) => {
     const articleId = Number(req.params.articleId);
     const article = getArticleById(articleId, req.user);
