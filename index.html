@@ -1484,19 +1484,32 @@
     }
 
     .faq-item summary::after {
-      content: "+";
+      content: "";
       position: absolute;
       right: 18px;
       top: 50%;
+      width: 16px;
+      height: 2px;
       transform: translateY(-50%);
-      color: #efbf79;
-      font-family: Arial, sans-serif;
-      font-size: 24px;
-      line-height: 1;
+      border-radius: 999px;
+      background: #efbf79;
     }
 
-    .faq-item[open] summary::after {
-      content: "−";
+    .faq-item summary::before {
+      content: "";
+      position: absolute;
+      right: 25px;
+      top: 50%;
+      width: 2px;
+      height: 16px;
+      transform: translateY(-50%);
+      border-radius: 999px;
+      background: #efbf79;
+      transition: opacity 160ms ease;
+    }
+
+    .faq-item[open] summary::before {
+      opacity: 0;
     }
 
     .faq-item p {
