@@ -117,9 +117,71 @@
       min-height: 78px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: 220px 1fr 260px;
+      grid-template-columns: 220px 1fr;
       align-items: center;
       gap: 24px;
+    }
+
+    .topbar__panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 24px;
+      min-width: 0;
+    }
+
+    .topbar__toggle,
+    .topbar__backdrop {
+      display: none;
+    }
+
+    .topbar__toggle {
+      width: 46px;
+      height: 46px;
+      padding: 0;
+      border: 1px solid rgba(240, 193, 119, 0.26);
+      border-radius: 50%;
+      background: rgba(10, 14, 11, 0.86);
+      color: var(--gold-2);
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .topbar__toggle:hover,
+    .topbar__toggle:focus-visible {
+      border-color: rgba(240, 193, 119, 0.48);
+      background: rgba(240, 193, 119, 0.08);
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .topbar__toggle-box {
+      width: 18px;
+      height: 14px;
+      margin: 0 auto;
+      display: grid;
+      align-content: space-between;
+    }
+
+    .topbar__toggle-line {
+      display: block;
+      width: 100%;
+      height: 2px;
+      border-radius: 999px;
+      background: currentColor;
+      transition: transform 160ms ease, opacity 160ms ease;
+    }
+
+    .topbar__toggle[aria-expanded="true"] .topbar__toggle-line:nth-child(1) {
+      transform: translateY(6px) rotate(45deg);
+    }
+
+    .topbar__toggle[aria-expanded="true"] .topbar__toggle-line:nth-child(2) {
+      opacity: 0;
+    }
+
+    .topbar__toggle[aria-expanded="true"] .topbar__toggle-line:nth-child(3) {
+      transform: translateY(-6px) rotate(-45deg);
     }
 
     .brand {
@@ -1472,7 +1534,7 @@
 
     @media (max-width: 1100px) {
       .topbar__inner {
-        grid-template-columns: 190px 1fr 220px;
+        grid-template-columns: 190px 1fr;
       }
 
       .product-grid {
@@ -1504,13 +1566,13 @@
       .topbar__inner {
         width: min(calc(100% - 24px), var(--content));
         min-height: 70px;
-        grid-template-columns: 1fr;
-        gap: 8px;
-        padding: 8px 0 10px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        padding: 10px 0;
       }
 
       .brand {
-        justify-content: center;
+        justify-content: flex-start;
       }
 
       .brand img {
@@ -1522,23 +1584,108 @@
         font-size: 18px;
       }
 
-      .nav {
+      .topbar__toggle {
+        display: inline-flex;
+        align-items: center;
         justify-content: center;
-        flex-wrap: wrap;
-        gap: 10px 16px;
-        overflow: visible;
-        padding-bottom: 0;
+        position: relative;
+        z-index: 32;
+      }
+
+      .topbar__panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        z-index: 31;
+        width: min(320px, calc(100vw - 28px));
+        height: 100dvh;
+        padding: 88px 20px 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 18px;
+        border-left: 1px solid rgba(240, 193, 119, 0.24);
+        background:
+          linear-gradient(180deg, rgba(8, 11, 9, 0.98), rgba(8, 11, 9, 0.92)),
+          rgba(8, 11, 9, 0.96);
+        box-shadow: -18px 0 48px rgba(0, 0, 0, 0.42);
+        overflow-y: auto;
+        pointer-events: none;
+        transform: translateX(100%);
+        transition: transform 200ms ease;
+      }
+
+      .topbar__panel.is-open {
+        pointer-events: auto;
+        transform: translateX(0);
+      }
+
+      .topbar__backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        border: 0;
+        background: rgba(2, 4, 3, 0.56);
+        backdrop-filter: blur(4px);
+      }
+
+      .topbar__backdrop[hidden] {
+        display: none;
+      }
+
+      .nav {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
       }
 
       .nav a {
-        padding: 4px 0;
+        width: 100%;
+        padding: 14px 0;
+        border-bottom: 1px solid rgba(240, 193, 119, 0.12);
+      }
+
+      .nav a::after {
+        display: none;
       }
 
       .socials,
       .site-account,
       .site-account__guest,
       .site-account__user {
-        justify-content: center;
+        width: 100%;
+        justify-content: stretch;
+      }
+
+      .socials {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+      }
+
+      .site-account__guest,
+      .site-account__user {
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .account-link,
+      .account-button {
+        flex: 1 1 140px;
+        min-height: 42px;
+      }
+
+      .account-chip {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .socials .icon-link {
+        width: 100%;
+        height: 44px;
+        border-radius: 999px;
       }
 
       .hero {
@@ -2055,20 +2202,30 @@
           <img src="images/logo-gold-small.png" alt="">
           <span>Лавка<br>Шамана</span>
         </a>
-        <nav class="nav" aria-label="Основная навигация">
-          <a href="#top">Главная</a>
-          <a href="#products">Продукция</a>
-          <a href="#practices">Практики</a>
-          <a href="#articles">Статьи</a>
-          <a href="#community">Сообщество</a>
-          <a href="#about">Обо мне</a>
-          <a href="#faq">FAQ</a>
-        </nav>
-        <div class="socials" aria-label="Аккаунт и корзина">
-          <div class="site-account" id="site-account"></div>
-          <a class="icon-link" href="#products" aria-label="Корзина"><svg class="icon"><use href="#icon-cart"></use></svg></a>
+        <div class="topbar__panel" id="site-menu" data-site-menu>
+          <nav class="nav" aria-label="Основная навигация">
+            <a href="#top">Главная</a>
+            <a href="#products">Продукция</a>
+            <a href="#practices">Практики</a>
+            <a href="#articles">Статьи</a>
+            <a href="#community">Сообщество</a>
+            <a href="#about">Обо мне</a>
+            <a href="#faq">FAQ</a>
+          </nav>
+          <div class="socials" aria-label="Аккаунт и корзина">
+            <div class="site-account" id="site-account"></div>
+            <a class="icon-link" href="#products" aria-label="Корзина"><svg class="icon"><use href="#icon-cart"></use></svg></a>
+          </div>
         </div>
+        <button class="topbar__toggle" type="button" aria-label="Открыть меню" aria-controls="site-menu" aria-expanded="false" data-menu-toggle>
+          <span class="topbar__toggle-box" aria-hidden="true">
+            <span class="topbar__toggle-line"></span>
+            <span class="topbar__toggle-line"></span>
+            <span class="topbar__toggle-line"></span>
+          </span>
+        </button>
       </div>
+      <button class="topbar__backdrop" type="button" hidden aria-hidden="true" tabindex="-1" data-menu-close></button>
     </header>
 
     <main id="top">
@@ -2421,6 +2578,51 @@
   <script src="/yandex-metrika.js" defer></script>
   <script>
     (() => {
+      const mobileMenu = document.querySelector("[data-site-menu]");
+      const menuToggle = document.querySelector("[data-menu-toggle]");
+      const menuBackdrop = document.querySelector("[data-menu-close]");
+      const mobileBreakpoint = window.matchMedia("(max-width: 820px)");
+
+      const setMenuState = (isOpen) => {
+        if (!mobileMenu || !menuToggle || !menuBackdrop) return;
+        mobileMenu.classList.toggle("is-open", isOpen);
+        menuToggle.setAttribute("aria-expanded", String(isOpen));
+        menuToggle.setAttribute("aria-label", isOpen ? "Закрыть меню" : "Открыть меню");
+        menuBackdrop.hidden = !isOpen;
+        document.body.style.overflow = isOpen ? "hidden" : "";
+      };
+
+      const closeMenu = () => setMenuState(false);
+      const openMenu = () => setMenuState(true);
+
+      menuToggle?.addEventListener("click", () => {
+        const isOpen = menuToggle.getAttribute("aria-expanded") === "true";
+        if (isOpen) {
+          closeMenu();
+          return;
+        }
+        openMenu();
+      });
+
+      menuBackdrop?.addEventListener("click", closeMenu);
+      const handleBreakpointChange = (event) => {
+        if (!event.matches) {
+          closeMenu();
+        }
+      };
+
+      if (typeof mobileBreakpoint.addEventListener === "function") {
+        mobileBreakpoint.addEventListener("change", handleBreakpointChange);
+      } else if (typeof mobileBreakpoint.addListener === "function") {
+        mobileBreakpoint.addListener(handleBreakpointChange);
+      }
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeMenu();
+        }
+      });
+
       const decodeHash = (value) => {
         try {
           return decodeURIComponent(value);
@@ -2461,6 +2663,7 @@
         const target = getHashTarget(href);
         if (!target) return;
         event.preventDefault();
+        closeMenu();
         if (window.location.hash !== href) {
           history.pushState(null, "", href);
         }
