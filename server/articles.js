@@ -505,6 +505,32 @@ function registerArticlesModule(config) {
     res.json({ article: withArticleDetails(getArticleById(articleId, req.user), req.user) });
   });
 
+  app.delete("/chat-api/knowledge/articles/:articleId", requireAuth, (req, res) => {
+    const articleId = Number(req.params.articleId);
+    const article = getArticleById(articleId, req.user);
+    if (!article) {
+      return res.status(404).json({ error: "Статья не найдена." });
+    }
+    if (!canEditArticle(article, req.user)) {
+      return res.status(403).json({ error: "Недостаточно прав для удаления статьи." });
+    }
+
+    const attachments = db.prepare(`
+      SELECT file_url AS fileUrl
+      FROM article_attachments
+      WHERE article_id = ?
+    `).all(articleId);
+
+    db.prepare("DELETE FROM articles WHERE id = ?").run(articleId);
+
+    for (const attachment of attachments) {
+      if (!attachment.fileUrl) continue;
+      fs.unlink(path.join(ARTICLE_UPLOAD_DIR, path.basename(attachment.fileUrl)), () => {});
+    }
+
+    return res.json({ ok: true, articleId });
+  });
+
   app.post("/chat-api/knowledge/articles/:articleId/attachments", requireAuth, articleUpload.single("file"), (req, res) => {
     const articleId = Number(req.params.articleId);
     const article = getArticleById(articleId, req.user);

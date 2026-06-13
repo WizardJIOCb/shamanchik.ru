@@ -26,8 +26,7 @@ const composeEls = {
   attachmentGrid: document.getElementById("attachments-grid"),
   uploadStatus: document.getElementById("upload-status"),
   saveDraftButton: document.getElementById("save-draft-button"),
-  submitReviewButton: document.getElementById("submit-review-button"),
-  previewLink: document.getElementById("preview-link"),
+  deleteArticleButton: document.getElementById("delete-article-button"),
   newArticleButton: document.getElementById("new-article-button"),
   adminLink: document.getElementById("admin-link")
 };
@@ -147,8 +146,6 @@ function fillForm(article) {
   composeEls.editor.innerHTML = article.contentHtml || "";
   composeEls.seoTitle.value = article.seoTitle || "";
   composeEls.seoDescription.value = article.seoDescription || "";
-  composeEls.previewLink.classList.toggle("hidden", !article.slug);
-  composeEls.previewLink.href = article.slug ? `/knowledge/${encodeURIComponent(article.slug)}` : "#";
   renderCoverPreview(article.coverImageUrl || "");
   renderAttachments(article.attachments || []);
   renderMineList();
@@ -206,6 +203,24 @@ async function saveArticle(nextStatus = null) {
   }
   fillForm(article);
   setStatus(`Материал сохранён со статусом «${articleStatusLabel(article.status)}».`);
+}
+
+async function deleteArticle() {
+  const articleId = Number(composeEls.id.value || 0);
+  if (!articleId) {
+    fillForm(emptyArticle());
+    setStatus("Нечего удалять: это ещё не сохранённый материал.");
+    return;
+  }
+
+  setStatus("Удаляю материал...");
+  await api(`/chat-api/knowledge/articles/${articleId}`, {
+    method: "DELETE"
+  });
+
+  composeState.articles = composeState.articles.filter((item) => item.id !== articleId);
+  fillForm(composeState.articles[0] || emptyArticle());
+  setStatus("Материал удалён.");
 }
 
 function renderAttachments(items) {
@@ -408,9 +423,9 @@ composeEls.saveDraftButton.addEventListener("click", async () => {
   }
 });
 
-composeEls.submitReviewButton.addEventListener("click", async () => {
+composeEls.deleteArticleButton.addEventListener("click", async () => {
   try {
-    await saveArticle(composeState.me?.isAdmin ? composeEls.statusSelect.value : "review");
+    await deleteArticle();
   } catch (error) {
     setStatus(error.message, true);
   }
