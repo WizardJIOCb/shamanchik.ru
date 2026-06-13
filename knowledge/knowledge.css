@@ -190,6 +190,11 @@ select {
   align-self: flex-start;
 }
 
+#new-article-button {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
 .action-button--danger {
   border-color: rgba(201, 117, 102, 0.55);
   color: #ffd8d0;
