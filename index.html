@@ -2421,24 +2421,51 @@
   <script src="/yandex-metrika.js" defer></script>
   <script>
     (() => {
-      const hash = window.location.hash;
-      if (!hash || hash === "#") return;
+      const decodeHash = (value) => {
+        try {
+          return decodeURIComponent(value);
+        } catch {
+          return value;
+        }
+      };
 
-      const scrollToHashTarget = () => {
-        const target = document.querySelector(hash);
+      const getHashTarget = (value = window.location.hash) => {
+        const hash = decodeHash(value);
+        if (!hash || hash === "#") return null;
+        return document.querySelector(hash);
+      };
+
+      const scrollToHashTarget = (value = window.location.hash, behavior = "auto") => {
+        const target = getHashTarget(value);
         if (!target) return false;
         const header = document.querySelector(".topbar");
         const headerOffset = header ? header.offsetHeight + 16 : 16;
         const top = target.getBoundingClientRect().top + window.scrollY - headerOffset;
-        window.scrollTo({ top: Math.max(top, 0), behavior: "auto" });
+        window.scrollTo({ top: Math.max(top, 0), behavior });
         return true;
       };
 
       const scheduleScrollCorrection = () => {
+        if (!window.location.hash || window.location.hash === "#") return;
         [0, 150, 400, 900].forEach((delay) => {
-          window.setTimeout(scrollToHashTarget, delay);
+          window.setTimeout(() => {
+            scrollToHashTarget(window.location.hash, "auto");
+          }, delay);
         });
       };
+
+      document.addEventListener("click", (event) => {
+        const link = event.target.closest('a[href^="#"]');
+        if (!link) return;
+        const href = link.getAttribute("href");
+        const target = getHashTarget(href);
+        if (!target) return;
+        event.preventDefault();
+        if (window.location.hash !== href) {
+          history.pushState(null, "", href);
+        }
+        scrollToHashTarget(href, "smooth");
+      });
 
       window.addEventListener("load", scheduleScrollCorrection, { once: true });
       window.addEventListener("hashchange", scheduleScrollCorrection);
