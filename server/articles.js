@@ -344,6 +344,16 @@ function registerArticlesModule(config) {
     });
   });
 
+  app.get("/chat-api/knowledge/articles/mine", requireAuth, (req, res) => {
+    res.json({
+      articles: listArticles({
+        viewer: req.user,
+        authorUserId: req.user.id,
+        includeAllStatuses: true
+      })
+    });
+  });
+
   app.get(["/api/knowledge/articles/:slug", "/chat-api/knowledge/articles/:slug"], (req, res) => {
     const viewer = getSession(req);
     const article = getArticleBySlug(cleanText(req.params.slug, 120), viewer);
