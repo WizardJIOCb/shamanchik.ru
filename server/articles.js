@@ -1030,7 +1030,7 @@ function registerArticlesModule(config) {
       slug: row.slug,
       title: row.title,
       excerpt: row.excerpt,
-      coverImageUrl: row.coverImageUrl,
+      coverImageUrl: resolveArticleCoverImage(row),
       type: row.type,
       status: row.status,
       isPublished: row.status === "published",
@@ -1063,6 +1063,23 @@ function registerArticlesModule(config) {
         canReact: Boolean(viewer)
       }
     };
+  }
+
+  function resolveArticleCoverImage(row) {
+    const explicitCover = cleanText(row.coverImageUrl, 600);
+    if (explicitCover) {
+      return explicitCover;
+    }
+
+    const byType = {
+      practice: "/images/index2-hero.png",
+      guide: "/images/banner2.jpg",
+      knowledge: "/images/main-block-reference.png",
+      blog: "/images/main-block-and-items+gallery.jpg",
+      article: "/images/banner1.jpg"
+    };
+
+    return byType[row.type] || "/images/background.jpg";
   }
 
   function getArticleById(articleId, viewer) {
