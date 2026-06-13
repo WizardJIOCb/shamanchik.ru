@@ -113,6 +113,17 @@ function switchAuthTab(tab) {
   dom.loginForm.classList.toggle("is-hidden", tab !== "login");
 }
 
+function applyAuthHash() {
+  const hash = String(window.location.hash || "").toLowerCase();
+  if (hash === "#login") {
+    switchAuthTab("login");
+    return;
+  }
+  if (hash === "#register") {
+    switchAuthTab("register");
+  }
+}
+
 function upsertMessage(message) {
   const index = state.messages.findIndex((item) => item.id === message.id);
   if (index >= 0) {
@@ -457,6 +468,7 @@ function connectSocket() {
 }
 
 async function bootstrap() {
+  applyAuthHash();
   try {
     const data = await api("/chat-api/me");
     state.me = data.user;
@@ -592,6 +604,8 @@ function openImagePreview(src) {
 document.querySelectorAll("[data-auth-tab]").forEach((button) => {
   button.addEventListener("click", () => switchAuthTab(button.dataset.authTab));
 });
+
+window.addEventListener("hashchange", applyAuthHash);
 
 dom.registerForm.addEventListener("submit", async (event) => {
   event.preventDefault();

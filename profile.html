@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Профиль | Лавка Шамана</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/images/icon-64.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/profile.css">
+</head>
+<body>
+  <div class="profile-page">
+    <header class="topbar">
+      <div class="topbar__inner">
+        <a class="brand" href="/" aria-label="Лавка Шамана">
+          <img src="/images/logo-gold-small.png" alt="">
+          <span>Лавка Шамана</span>
+        </a>
+        <nav class="topnav" aria-label="Навигация профиля">
+          <a href="/">Главная</a>
+          <a href="/knowledge">Материалы</a>
+          <a href="/chat">Сообщество</a>
+        </nav>
+        <div class="site-account" id="site-account"></div>
+      </div>
+    </header>
+
+    <main class="profile-shell">
+      <section class="profile-hero">
+        <p class="profile-hero__eyebrow">Личный кабинет</p>
+        <h1 class="profile-hero__title">Профиль и заказы</h1>
+        <p class="profile-hero__lead">Здесь можно обновить имя профиля, аватар, информацию о себе и посмотреть свои заказы без переходов по разным страницам.</p>
+      </section>
+
+      <section class="profile-grid">
+        <aside class="panel panel--soft profile-card">
+          <div id="profile-avatar-slot"></div>
+          <div>
+            <h2 class="profile-card__name" id="profile-display-name">Профиль</h2>
+            <p class="profile-card__username" id="profile-username">@user</p>
+          </div>
+          <p class="profile-card__bio" id="profile-bio">Загрузка профиля...</p>
+          <div class="profile-card__facts">
+            <div class="profile-card__fact">
+              <strong>О себе</strong>
+              <span id="profile-location">Не указано</span>
+            </div>
+            <div class="profile-card__fact">
+              <strong>Заказов</strong>
+              <span id="profile-orders-count">0</span>
+            </div>
+            <div class="profile-card__fact">
+              <strong>В аккаунте с</strong>
+              <span id="profile-created-at">—</span>
+            </div>
+          </div>
+        </aside>
+
+        <div class="profile-stack">
+          <section class="panel profile-form">
+            <div>
+              <p class="panel__eyebrow">Настройки</p>
+              <h2>Редактирование профиля</h2>
+            </div>
+
+            <form id="avatar-form">
+              <div class="avatar-actions">
+                <label class="upload-button" for="avatar-input">
+                  Загрузить аватар
+                  <input id="avatar-input" name="avatar" type="file" accept="image/*">
+                </label>
+                <span class="field-note" id="avatar-file-name">Файл не выбран</span>
+              </div>
+            </form>
+
+            <form id="profile-form" class="profile-form__grid">
+              <label>
+                <span>Имя профиля</span>
+                <input id="display-name-input" name="displayName" maxlength="48" required>
+              </label>
+              <label>
+                <span>Логин</span>
+                <input id="username-input" readonly>
+              </label>
+              <label class="profile-form__wide">
+                <span>Коротко о себе</span>
+                <input id="location-input" name="location" maxlength="80" placeholder="Например: грибы, практики, наблюдения">
+              </label>
+              <label class="profile-form__wide">
+                <span>Информация о себе</span>
+                <textarea id="bio-input" name="bio" maxlength="280" placeholder="Расскажите немного о себе, интересах и направлении."></textarea>
+              </label>
+              <div class="profile-form__wide profile-form__actions">
+                <button class="action-button" type="submit">Сохранить изменения</button>
+                <a class="ghost-link" href="/chat">Перейти в сообщество</a>
+              </div>
+              <p class="status-line profile-form__wide" id="profile-status"></p>
+            </form>
+          </section>
+
+          <section class="panel orders-panel">
+            <div>
+              <p class="panel__eyebrow">История</p>
+              <h2>Мои заказы</h2>
+            </div>
+            <div class="orders-list" id="orders-list">
+              <div class="empty-state">
+                <h3>Загружаю заказы</h3>
+                <p>Сейчас подтяну историю ваших оформлений.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/site-account.js" defer></script>
+  <script src="/profile.js" defer></script>
+</body>
+</html>

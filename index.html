@@ -117,7 +117,7 @@
       min-height: 78px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: 220px 1fr 190px;
+      grid-template-columns: 220px 1fr 260px;
       align-items: center;
       gap: 24px;
     }
@@ -184,6 +184,111 @@
       display: flex;
       justify-content: flex-end;
       gap: 9px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .site-account {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .site-account__guest,
+    .site-account__user {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-width: 0;
+      width: 100%;
+    }
+
+    .account-link,
+    .account-button {
+      min-height: 36px;
+      padding: 0 14px;
+      border: 1px solid rgba(240, 193, 119, 0.2);
+      border-radius: 999px;
+      background: rgba(240, 193, 119, 0.06);
+      color: rgba(247, 234, 214, 0.92);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .account-link:hover,
+    .account-link:focus-visible,
+    .account-button:hover,
+    .account-button:focus-visible {
+      border-color: rgba(240, 193, 119, 0.42);
+      background: rgba(240, 193, 119, 0.12);
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .account-button {
+      cursor: pointer;
+    }
+
+    .account-link--gold {
+      color: #130c05;
+      border-color: rgba(240, 193, 119, 0.7);
+      background: linear-gradient(180deg, #f0c177, #c99148);
+    }
+
+    .account-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      max-width: 100%;
+      padding: 5px 12px 5px 6px;
+      border: 1px solid rgba(240, 193, 119, 0.24);
+      border-radius: 999px;
+      background: rgba(12, 18, 14, 0.82);
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .account-chip:hover,
+    .account-chip:focus-visible {
+      border-color: rgba(240, 193, 119, 0.42);
+      background: rgba(240, 193, 119, 0.08);
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .account-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex: 0 0 auto;
+      border: 1px solid rgba(240, 193, 119, 0.36);
+      background: linear-gradient(135deg, rgba(240, 193, 119, 0.26), rgba(102, 116, 90, 0.22));
+    }
+
+    .account-avatar--fallback {
+      display: inline-grid;
+      place-items: center;
+      color: var(--gold-2);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .account-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #f7ead6;
+      font-size: 12px;
+      font-weight: 700;
     }
 
     .icon-link,
@@ -1271,11 +1376,7 @@
 
     @media (max-width: 1100px) {
       .topbar__inner {
-        grid-template-columns: 190px 1fr;
-      }
-
-      .socials {
-        display: none;
+        grid-template-columns: 190px 1fr 220px;
       }
 
       .product-grid {
@@ -1335,6 +1436,13 @@
 
       .nav::-webkit-scrollbar {
         display: none;
+      }
+
+      .socials,
+      .site-account,
+      .site-account__guest,
+      .site-account__user {
+        justify-content: center;
       }
 
       .hero {
@@ -1859,11 +1967,8 @@
           <a href="#community">Сообщество</a>
           <a href="#about">Обо мне</a>
         </nav>
-        <div class="socials" aria-label="Социальные сети и корзина">
-          <a class="icon-link" href="#" aria-label="Telegram"><svg class="icon"><use href="#icon-send"></use></svg></a>
-          <a class="icon-link" href="#" aria-label="YouTube"><svg class="icon"><use href="#icon-youtube"></use></svg></a>
-          <a class="icon-link" href="#" aria-label="TikTok"><svg class="icon"><use href="#icon-tiktok"></use></svg></a>
-          <a class="icon-link" href="#" aria-label="Instagram"><svg class="icon"><use href="#icon-instagram"></use></svg></a>
+        <div class="socials" aria-label="Аккаунт и корзина">
+          <div class="site-account" id="site-account"></div>
           <a class="icon-link" href="#products" aria-label="Корзина"><svg class="icon"><use href="#icon-cart"></use></svg></a>
         </div>
       </div>
@@ -2136,6 +2241,7 @@
     </footer>
   </div>
   <script src="/home-knowledge.js" defer></script>
+  <script src="/site-account.js" defer></script>
   <div class="product-modal" data-product-modal hidden>
     <div class="product-modal__backdrop" data-product-close></div>
     <article class="product-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">

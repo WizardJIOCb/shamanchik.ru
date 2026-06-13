@@ -13,6 +13,8 @@ const ROOT_DIR = path.resolve(__dirname, "..");
 const CHAT_DIR = path.join(ROOT_DIR, "chat");
 const STATIC_PAGES = new Map([
   ["/", "index.html"],
+  ["/profile", "profile.html"],
+  ["/profile.html", "profile.html"],
   ["/payment", "payment.html"],
   ["/payment.html", "payment.html"],
   ["/offer", "offer.html"],
@@ -25,6 +27,7 @@ const DB_PATH = process.env.CHAT_DB_PATH || path.join(STORAGE_DIR, "chat.sqlite"
 const UPLOAD_DIR = process.env.CHAT_UPLOAD_DIR || path.join(STORAGE_DIR, "uploads");
 const PRODUCT_ASSETS_DIR = path.join(ROOT_DIR, "images", "products");
 const PRODUCT_UPLOAD_DIR = process.env.CHAT_PRODUCT_UPLOAD_DIR || path.join(STORAGE_DIR, "product-images");
+const PROFILE_AVATAR_PREFIX = "/chat-uploads/";
 const PRODUCTS_MD_PATH = path.join(PRODUCT_ASSETS_DIR, "products.md");
 const PORT = Number(process.env.PORT || 3210);
 const SESSION_COOKIE = "shamanchik_chat_session";
@@ -207,6 +210,7 @@ db.exec(`
     username TEXT NOT NULL UNIQUE COLLATE NOCASE,
     password_hash TEXT NOT NULL,
     display_name TEXT NOT NULL,
+    avatar_url TEXT NOT NULL DEFAULT '',
     bio TEXT NOT NULL DEFAULT '',
     location TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
@@ -321,6 +325,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
     public_id TEXT NOT NULL UNIQUE,
     customer_name TEXT NOT NULL,
     customer_phone TEXT NOT NULL,
@@ -337,10 +342,18 @@ db.exec(`
     payment_url TEXT NOT NULL DEFAULT '',
     payment_status TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
   );
 
 `);
+
+function ensureUserSchema() {
+  const columns = db.prepare("PRAGMA table_info(users)").all().map((column) => column.name);
+  if (!columns.includes("avatar_url")) {
+    db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''");
+  }
+}
 
 function ensureProductSchema() {
   const columns = db.prepare("PRAGMA table_info(products)").all().map((column) => column.name);
@@ -349,7 +362,16 @@ function ensureProductSchema() {
   }
 }
 
+function ensureOrderSchema() {
+  const columns = db.prepare("PRAGMA table_info(orders)").all().map((column) => column.name);
+  if (!columns.includes("user_id")) {
+    db.exec("ALTER TABLE orders ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE SET NULL");
+  }
+}
+
+ensureUserSchema();
 ensureProductSchema();
+ensureOrderSchema();
 function ensureStoreSettings() {
   const defaults = new Map([
     ["delivery_enabled", process.env.CDEK_FROM_LOCATION_CODE ? "1" : "0"],
@@ -444,6 +466,25 @@ const productImageUpload = multer({
       const safeBase = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
       const ext = path.extname(safeBase).toLowerCase() || ".jpg";
       const name = path.basename(safeBase, ext).slice(0, 48) || "product";
+      cb(null, `${Date.now()}-${crypto.randomUUID()}-${name}${ext}`);
+    }
+  }),
+  fileFilter: (_req, file, cb) => {
+    if (!String(file.mimetype || "").startsWith("image/")) {
+      return cb(new Error("Only image files are allowed."));
+    }
+    return cb(null, true);
+  },
+  limits: { fileSize: MAX_FILE_SIZE }
+});
+
+const avatarUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+    filename: (_req, file, cb) => {
+      const safeBase = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const ext = path.extname(safeBase).toLowerCase() || ".jpg";
+      const name = path.basename(safeBase, ext).slice(0, 48) || "avatar";
       cb(null, `${Date.now()}-${crypto.randomUUID()}-${name}${ext}`);
     }
   }),
@@ -903,6 +944,7 @@ function parseJsonField(value, fallback) {
 function publicOrder(row) {
   return {
     id: row.id,
+    userId: row.user_id || null,
     publicId: row.public_id,
     customerName: row.customer_name,
     customerPhone: row.customer_phone,
@@ -1261,6 +1303,7 @@ function getSession(req) {
       u.id AS id,
       u.username,
       u.display_name AS displayName,
+      u.avatar_url AS avatarUrl,
       u.bio,
       u.location,
       u.created_at AS createdAt,
@@ -1317,6 +1360,7 @@ function publicUserProfile(userId) {
       u.id,
       u.username,
       u.display_name AS displayName,
+      u.avatar_url AS avatarUrl,
       u.bio,
       u.location,
       u.created_at AS createdAt,
@@ -1995,6 +2039,7 @@ app.post(["/api/delivery/calculate", "/chat-api/delivery/calculate"], async (req
 
 app.post(["/api/orders", "/chat-api/orders"], async (req, res, next) => {
   try {
+    const session = getSession(req);
     const items = normalizeOrderItems(req.body.items);
     if (!items.length) {
       return res.status(400).json({ error: "Cart is empty." });
@@ -2029,11 +2074,13 @@ app.post(["/api/orders", "/chat-api/orders"], async (req, res, next) => {
     const stamp = nowIso();
     const result = db.prepare(`
       INSERT INTO orders(
+        user_id,
         public_id, customer_name, customer_phone, customer_email, customer_comment,
         items_json, delivery_json, subtotal, delivery_price, total, status,
         payment_provider, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
+      session?.userId || null,
       publicId,
       customerName,
       customerPhone,
@@ -2558,6 +2605,40 @@ app.patch("/chat-api/me/profile", requireAuth, (req, res) => {
     user: publicUserProfile(req.user.id),
     channels: listChannels(req.user.id)
   });
+});
+
+app.post("/chat-api/me/avatar", requireAuth, avatarUpload.single("avatar"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "Avatar image is required." });
+  }
+
+  const current = publicUserProfile(req.user.id);
+  const nextAvatarUrl = `${PROFILE_AVATAR_PREFIX}${path.basename(req.file.path)}`;
+  db.prepare("UPDATE users SET avatar_url = ?, last_seen_at = ? WHERE id = ?")
+    .run(nextAvatarUrl, nowIso(), req.user.id);
+
+  if (current?.avatarUrl && current.avatarUrl.startsWith(PROFILE_AVATAR_PREFIX)) {
+    const currentFilePath = path.join(UPLOAD_DIR, path.basename(current.avatarUrl));
+    if (currentFilePath !== req.file.path) {
+      fs.unlink(currentFilePath, () => {});
+    }
+  }
+
+  res.json({
+    user: publicUserProfile(req.user.id),
+    channels: listChannels(req.user.id)
+  });
+});
+
+app.get("/chat-api/me/orders", requireAuth, (req, res) => {
+  const rows = db.prepare(`
+    SELECT *
+    FROM orders
+    WHERE user_id = ?
+    ORDER BY id DESC
+    LIMIT 100
+  `).all(req.user.id);
+  res.json({ orders: rows.map(publicOrder) });
 });
 
 app.get("/chat-api/admin/overview", requireAdmin, (req, res) => {
