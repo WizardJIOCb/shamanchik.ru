@@ -55,7 +55,7 @@
 
   function safeImageUrl(value) {
     const url = String(value || "").trim();
-    if (/^(\/images\/|images\/|https?:\/\/)/i.test(url)) return url;
+    if (/^(\/[a-z0-9._/-]+|images\/|https?:\/\/)/i.test(url)) return url;
     return fallbackImage;
   }
 
