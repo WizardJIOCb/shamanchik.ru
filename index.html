@@ -1430,13 +1430,14 @@
       border: 1px solid rgba(216, 164, 83, 0.24);
       border-radius: 50%;
       color: #efc17d;
+      font-family: Arial, sans-serif;
       font-size: 24px;
       line-height: 1;
-      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+      transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
     }
 
     .faq-group[open] summary::after {
-      transform: rotate(45deg);
+      content: "−";
       background: rgba(201, 145, 72, 0.12);
       border-color: rgba(216, 164, 83, 0.4);
     }
@@ -1489,6 +1490,7 @@
       top: 50%;
       transform: translateY(-50%);
       color: #efbf79;
+      font-family: Arial, sans-serif;
       font-size: 24px;
       line-height: 1;
     }
