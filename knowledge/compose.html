@@ -88,11 +88,7 @@
               <textarea id="excerpt-input" name="excerpt" rows="3" maxlength="420" placeholder="Этот текст показывается в карточках, списках и в шаринге ссылки"></textarea>
             </div>
 
-            <div class="field-stack">
-              <label class="field-label" for="cover-input">Ссылка на обложку</label>
-              <input id="cover-input" name="coverImageUrl" maxlength="600" placeholder="Можно вставить URL вручную или загрузить изображение ниже">
-              <p class="field-hint">Если загрузите файл в блоке ниже, это поле заполнится автоматически.</p>
-            </div>
+            <input id="cover-input" name="coverImageUrl" type="hidden">
 
             <div class="composer-panel">
               <div class="header-actions">
@@ -102,6 +98,7 @@
                   <span>Загрузить обложку</span>
                 </label>
               </div>
+              <p class="field-hint">Загрузите изображение для обложки статьи. Оно будет использоваться в карточках и на странице материала.</p>
               <div class="status-line" id="cover-upload-status"></div>
               <div class="cover-upload-preview hidden" id="cover-preview"></div>
             </div>
