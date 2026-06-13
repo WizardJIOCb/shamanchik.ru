@@ -23,8 +23,9 @@ const STATIC_PAGES = new Map([
 const STORAGE_DIR = process.env.CHAT_STORAGE_DIR || path.join(ROOT_DIR, "storage");
 const DB_PATH = process.env.CHAT_DB_PATH || path.join(STORAGE_DIR, "chat.sqlite");
 const UPLOAD_DIR = process.env.CHAT_UPLOAD_DIR || path.join(STORAGE_DIR, "uploads");
-const PRODUCTS_DIR = path.join(ROOT_DIR, "images", "products");
-const PRODUCTS_MD_PATH = path.join(PRODUCTS_DIR, "products.md");
+const PRODUCT_ASSETS_DIR = path.join(ROOT_DIR, "images", "products");
+const PRODUCT_UPLOAD_DIR = process.env.CHAT_PRODUCT_UPLOAD_DIR || path.join(STORAGE_DIR, "product-images");
+const PRODUCTS_MD_PATH = path.join(PRODUCT_ASSETS_DIR, "products.md");
 const PORT = Number(process.env.PORT || 3210);
 const SESSION_COOKIE = "shamanchik_chat_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
@@ -187,9 +188,14 @@ const CURATED_CATALOG_PRODUCTS = [
 ];
 
 
-fs.mkdirSync(STORAGE_DIR, { recursive: true });
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-fs.mkdirSync(PRODUCTS_DIR, { recursive: true });
+function ensureDirectory(dirPath) {
+  fs.mkdirSync(dirPath, { recursive: true });
+}
+
+ensureDirectory(STORAGE_DIR);
+ensureDirectory(UPLOAD_DIR);
+ensureDirectory(PRODUCT_UPLOAD_DIR);
+ensureDirectory(PRODUCT_ASSETS_DIR);
 
 const db = new DatabaseSync(DB_PATH);
 db.exec(`
@@ -433,7 +439,7 @@ const upload = multer({
 
 const productImageUpload = multer({
   storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, PRODUCTS_DIR),
+    destination: (_req, _file, cb) => cb(null, PRODUCT_UPLOAD_DIR),
     filename: (_req, file, cb) => {
       const safeBase = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
       const ext = path.extname(safeBase).toLowerCase() || ".jpg";
@@ -717,7 +723,7 @@ function parseProductsMarkdown() {
     return [];
   }
 
-  const imageFiles = fs.readdirSync(PRODUCTS_DIR)
+  const imageFiles = fs.readdirSync(PRODUCT_ASSETS_DIR)
     .filter((fileName) => /\.(jpe?g|png|webp)$/i.test(fileName))
     .sort((a, b) => a.localeCompare(b, "ru"));
 
@@ -1879,6 +1885,7 @@ app.use("/chat-assets", express.static(CHAT_DIR, {
   setHeaders: setStaticUtf8Headers
 }));
 app.use("/chat-uploads", express.static(UPLOAD_DIR));
+app.use("/product-images", express.static(PRODUCT_UPLOAD_DIR));
 
 for (const [routePath, fileName] of STATIC_PAGES.entries()) {
   app.get(routePath, (_req, res) => {
@@ -2238,7 +2245,7 @@ app.post(["/api/admin/products/:productId/image", "/chat-api/admin/products/:pro
     return res.status(400).json({ error: "Image file is required." });
   }
 
-  const imageUrl = `/images/products/${path.basename(req.file.path)}`;
+  const imageUrl = `/product-images/${path.basename(req.file.path)}`;
   db.prepare("UPDATE products SET image_url = ?, updated_at = ? WHERE id = ?").run(imageUrl, nowIso(), productId);
   res.json({ product: getProduct(productId) });
 });
