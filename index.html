@@ -1421,24 +1421,22 @@
     }
 
     .faq-group summary::after {
-      content: "+";
+      content: "";
       flex: 0 0 auto;
       width: 36px;
       height: 36px;
-      display: grid;
-      place-items: center;
       border: 1px solid rgba(216, 164, 83, 0.24);
       border-radius: 50%;
-      color: #efc17d;
-      font-family: Arial, sans-serif;
-      font-size: 24px;
-      line-height: 1;
+      background:
+        linear-gradient(#efc17d, #efc17d) center / 14px 2px no-repeat,
+        linear-gradient(#efc17d, #efc17d) center / 2px 14px no-repeat;
       transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
     }
 
     .faq-group[open] summary::after {
-      content: "−";
-      background: rgba(201, 145, 72, 0.12);
+      background:
+        linear-gradient(#efc17d, #efc17d) center / 14px 2px no-repeat,
+        rgba(201, 145, 72, 0.12);
       border-color: rgba(216, 164, 83, 0.4);
     }
 
@@ -1470,7 +1468,7 @@
     .faq-item summary {
       position: relative;
       display: block;
-      padding: 16px 54px 16px 18px;
+      padding: 16px 62px 16px 18px;
       color: #fff1da;
       font-size: 15px;
       font-weight: 700;
@@ -1486,30 +1484,24 @@
     .faq-item summary::after {
       content: "";
       position: absolute;
-      right: 18px;
+      right: 16px;
       top: 50%;
-      width: 16px;
-      height: 2px;
+      width: 32px;
+      height: 32px;
       transform: translateY(-50%);
+      border: 1px solid rgba(216, 164, 83, 0.24);
       border-radius: 999px;
-      background: #efbf79;
+      background:
+        linear-gradient(#efbf79, #efbf79) center / 12px 2px no-repeat,
+        linear-gradient(#efbf79, #efbf79) center / 2px 12px no-repeat;
+      transition: background 160ms ease, border-color 160ms ease;
     }
 
-    .faq-item summary::before {
-      content: "";
-      position: absolute;
-      right: 25px;
-      top: 50%;
-      width: 2px;
-      height: 16px;
-      transform: translateY(-50%);
-      border-radius: 999px;
-      background: #efbf79;
-      transition: opacity 160ms ease;
-    }
-
-    .faq-item[open] summary::before {
-      opacity: 0;
+    .faq-item[open] summary::after {
+      background:
+        linear-gradient(#efbf79, #efbf79) center / 12px 2px no-repeat,
+        rgba(240, 193, 119, 0.08);
+      border-color: rgba(216, 164, 83, 0.4);
     }
 
     .faq-item p {
