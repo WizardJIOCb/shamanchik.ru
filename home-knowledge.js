@@ -149,5 +149,8 @@
       showcase.querySelectorAll("[data-home-loading]").forEach((node) => {
         node.textContent = error.message || "Не удалось загрузить материалы.";
       });
+    })
+    .finally(() => {
+      window.dispatchEvent(new CustomEvent("home:content-ready"));
     });
 })();

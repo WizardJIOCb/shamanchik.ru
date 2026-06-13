@@ -2414,6 +2414,32 @@
   </div>
   <noscript><div><img src="https://mc.yandex.ru/watch/108620522" style="position:absolute; left:-9999px;" alt=""></div></noscript>
   <script src="/yandex-metrika.js" defer></script>
+  <script>
+    (() => {
+      const hash = window.location.hash;
+      if (!hash || hash === "#") return;
+
+      const scrollToHashTarget = () => {
+        const target = document.querySelector(hash);
+        if (!target) return false;
+        const header = document.querySelector(".topbar");
+        const headerOffset = header ? header.offsetHeight + 16 : 16;
+        const top = target.getBoundingClientRect().top + window.scrollY - headerOffset;
+        window.scrollTo({ top: Math.max(top, 0), behavior: "auto" });
+        return true;
+      };
+
+      const scheduleScrollCorrection = () => {
+        [0, 150, 400, 900].forEach((delay) => {
+          window.setTimeout(scrollToHashTarget, delay);
+        });
+      };
+
+      window.addEventListener("load", scheduleScrollCorrection, { once: true });
+      window.addEventListener("hashchange", scheduleScrollCorrection);
+      window.addEventListener("home:content-ready", scheduleScrollCorrection);
+    })();
+  </script>
   <script src="/home-knowledge.js" defer></script>
   <script src="/site-account.js" defer></script>
   <div class="product-modal" data-product-modal hidden>
