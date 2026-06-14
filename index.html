@@ -796,6 +796,14 @@
       margin-top: 4px;
     }
 
+    .product-card__price-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
     .product-card__details {
       width: fit-content;
       padding: 0;
@@ -828,6 +836,42 @@
       font-size: 20px;
       font-weight: 800;
       line-height: 1;
+      white-space: nowrap;
+    }
+
+    .price-stack,
+    .modal-price {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .price--old {
+      color: rgba(242, 228, 204, 0.48);
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: line-through;
+      text-decoration-thickness: 1px;
+    }
+
+    .price--modal {
+      font-size: 24px;
+    }
+
+    .discount-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      padding: 0 10px;
+      color: #1b1207;
+      border-radius: 999px;
+      background: #efbf79;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
       white-space: nowrap;
     }
 
@@ -926,6 +970,10 @@
 
     .product-modal__meta {
       margin: 0 0 12px;
+    }
+
+    .product-modal__price {
+      margin: 0 0 14px;
     }
 
     .product-modal__text {
@@ -2793,6 +2841,7 @@
       <div class="product-modal__body">
         <h3 id="product-modal-title" data-product-modal-title></h3>
         <p class="product-modal__meta" data-product-modal-meta></p>
+        <div class="product-modal__price" data-product-modal-price></div>
         <div class="product-modal__text" data-product-modal-description></div>
         <div class="product-modal__facts" data-product-modal-facts></div>
         <div class="section-actions">

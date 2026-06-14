@@ -109,10 +109,14 @@ async function fetchJson(url, options = {}) {
 }
 
 function formatPrice(product) {
+  const discount = Number(product.discountPercent || 0);
   if (product.priceOptions?.length) {
-    return `от ${product.priceOptions[0].price.toLocaleString("ru-RU")} ₽`;
+    const first = product.priceOptions[0];
+    const baseAmount = Number(first.originalPrice ?? first.price ?? 0);
+    const label = `от ${baseAmount.toLocaleString("ru-RU")} ₽`;
+    return discount > 0 ? `${label} · -${discount}%` : label;
   }
-  return product.price > 0 ? `${product.price.toLocaleString("ru-RU")} ₽` : "Цена по запросу";
+  return product.price > 0 ? `${product.price.toLocaleString("ru-RU")} ₽${discount > 0 ? ` · -${discount}%` : ""}` : "Цена по запросу";
 }
 
 function formatPriceOptionsText(product) {
@@ -160,6 +164,7 @@ function emptyProduct() {
     notice: "Не является лекарственным средством.",
     imageUrl: "",
     price: 800,
+    discountPercent: 0,
     unit: "100 г",
     priceOptions: [
       { unit: "100 г", price: 800 },
@@ -178,6 +183,7 @@ function fillForm(product) {
   els.form.elements.subtitle.value = product.subtitle || "";
   els.form.elements.category.value = product.category || "";
   els.form.elements.price.value = product.price || 0;
+  els.form.elements.discountPercent.value = product.discountPercent || 0;
   els.form.elements.unit.value = product.unit || "";
   els.form.elements.sortOrder.value = product.sortOrder ?? 0;
   els.form.elements.priceOptions.value = formatPriceOptionsText(product);
@@ -209,6 +215,7 @@ function formPayload() {
     subtitle: form.subtitle.value,
     category: form.category.value,
     price: Number(form.price.value || 0),
+    discountPercent: Number(form.discountPercent.value || 0),
     unit: form.unit.value,
     priceOptions: form.priceOptions.value,
     sortOrder: Number(form.sortOrder.value || 0),

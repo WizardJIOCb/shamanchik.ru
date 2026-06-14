@@ -309,6 +309,7 @@ db.exec(`
     notice TEXT NOT NULL DEFAULT '',
     image_url TEXT NOT NULL DEFAULT '',
     price INTEGER NOT NULL DEFAULT 0,
+    discount_percent INTEGER NOT NULL DEFAULT 0,
     unit TEXT NOT NULL DEFAULT '100 г',
     price_options_json TEXT NOT NULL DEFAULT '[]',
     is_active INTEGER NOT NULL DEFAULT 1,
@@ -376,6 +377,9 @@ function ensureProductSchema() {
   const columns = db.prepare("PRAGMA table_info(products)").all().map((column) => column.name);
   if (!columns.includes("price_options_json")) {
     db.exec("ALTER TABLE products ADD COLUMN price_options_json TEXT NOT NULL DEFAULT '[]'");
+  }
+  if (!columns.includes("discount_percent")) {
+    db.exec("ALTER TABLE products ADD COLUMN discount_percent INTEGER NOT NULL DEFAULT 0");
   }
 }
 
@@ -654,12 +658,31 @@ function defaultGrainMyceliumPriceOptions() {
   return GRAIN_MYCELIUM_PRICE_OPTIONS.map((option) => ({ ...option }));
 }
 
+function clampProductDiscountPercent(value) {
+  return Math.min(95, Math.max(0, cleanInteger(value, 0)));
+}
+
+function applyProductDiscount(price, discountPercent) {
+  const amount = Math.max(0, cleanInteger(price, 0));
+  const percent = clampProductDiscountPercent(discountPercent);
+  if (!amount || !percent) return amount;
+  return Math.max(0, Math.round(amount * (100 - percent) / 100));
+}
+
 function isGrainMyceliumProduct(product) {
   const haystack = `${product.title || ""} ${product.category || ""}`.toLocaleLowerCase("ru-RU");
   return haystack.includes("зерновой мицелий");
 }
 
-function normalizeProduct(row) {
+function normalizeProduct(row, { admin = false } = {}) {
+  const discountPercent = clampProductDiscountPercent(row.discount_percent);
+  const originalPrice = Math.max(0, cleanInteger(row.price, 0));
+  const originalPriceOptions = parsePriceOptions(row.price_options_json);
+  const discountedPriceOptions = originalPriceOptions.map((item) => ({
+    ...item,
+    originalPrice: item.price,
+    price: applyProductDiscount(item.price, discountPercent)
+  }));
   return {
     id: row.id,
     slug: row.slug,
@@ -673,9 +696,13 @@ function normalizeProduct(row) {
     composition: row.composition,
     notice: row.notice,
     imageUrl: row.image_url,
-    price: row.price,
+    price: admin ? originalPrice : applyProductDiscount(originalPrice, discountPercent),
+    originalPrice,
+    discountPercent,
     unit: row.unit,
-    priceOptions: parsePriceOptions(row.price_options_json),
+    priceOptions: admin ? originalPriceOptions : discountedPriceOptions,
+    originalPriceOptions,
+    hasDiscount: discountPercent > 0,
     isActive: Boolean(row.is_active),
     sortOrder: row.sort_order,
     createdAt: row.created_at,
@@ -690,7 +717,7 @@ function listProducts({ includeInactive = false } = {}) {
     FROM products
     ${where}
     ORDER BY sort_order ASC, id ASC
-  `).all().map(normalizeProduct);
+  `).all().map((row) => normalizeProduct(row, { admin: includeInactive }));
 }
 
 
@@ -729,7 +756,7 @@ function storeSettingsPayload({ admin = false } = {}) {
 
 function getProduct(productId) {
   const row = db.prepare("SELECT * FROM products WHERE id = ?").get(productId);
-  return row ? normalizeProduct(row) : null;
+  return row ? normalizeProduct(row, { admin: true }) : null;
 }
 
 function getProductBySlug(slug) {
@@ -756,6 +783,7 @@ function productPayloadFromBody(body, existing = {}) {
     notice: cleanText(body.notice, 420),
     imageUrl: cleanText(body.imageUrl ?? body.image_url, 500),
     price: Math.max(0, cleanInteger(body.price, baseOption?.price || existing.price || 0)),
+    discountPercent: clampProductDiscountPercent(body.discountPercent ?? body.discount_percent ?? existing.discountPercent),
     unit: cleanText(body.unit, 80) || baseOption?.unit || "100 г",
     priceOptionsJson: JSON.stringify(priceOptions),
     isActive: body.isActive === false || body.isActive === "false" || body.is_active === 0 || body.is_active === "0" ? 0 : 1,
@@ -859,10 +887,10 @@ function ensureDefaultProducts() {
   const insert = db.prepare(`
     INSERT INTO products(
       slug, title, subtitle, category, short_description, description, benefits_json,
-      dosage, composition, notice, image_url, price, unit, price_options_json, is_active, sort_order,
+      dosage, composition, notice, image_url, price, discount_percent, unit, price_options_json, is_active, sort_order,
       created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   db.exec("BEGIN");
@@ -881,6 +909,7 @@ function ensureDefaultProducts() {
         item.notice,
         item.imageUrl,
         item.price,
+        0,
         item.unit,
         item.priceOptionsJson,
         item.isActive,
@@ -925,10 +954,10 @@ function ensureCuratedCatalogProducts() {
   const insert = db.prepare(`
     INSERT INTO products(
       slug, title, subtitle, category, short_description, description, benefits_json,
-      dosage, composition, notice, image_url, price, unit, price_options_json, is_active, sort_order,
+      dosage, composition, notice, image_url, price, discount_percent, unit, price_options_json, is_active, sort_order,
       created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const stamp = nowIso();
 
@@ -949,6 +978,7 @@ function ensureCuratedCatalogProducts() {
       product.notice,
       product.imageUrl,
       product.price,
+      0,
       product.unit,
       "[]",
       1,
@@ -2503,10 +2533,10 @@ app.post(["/api/admin/products", "/chat-api/admin/products"], requireAdmin, (req
   const result = db.prepare(`
     INSERT INTO products(
       slug, title, subtitle, category, short_description, description, benefits_json,
-      dosage, composition, notice, image_url, price, unit, price_options_json, is_active, sort_order,
+      dosage, composition, notice, image_url, price, discount_percent, unit, price_options_json, is_active, sort_order,
       created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     payload.slug,
     payload.title,
@@ -2520,6 +2550,7 @@ app.post(["/api/admin/products", "/chat-api/admin/products"], requireAdmin, (req
     payload.notice,
     payload.imageUrl,
     payload.price,
+    payload.discountPercent,
     payload.unit,
     payload.priceOptionsJson,
     payload.isActive,
@@ -2558,6 +2589,7 @@ app.patch(["/api/admin/products/:productId", "/chat-api/admin/products/:productI
       notice = ?,
       image_url = ?,
       price = ?,
+      discount_percent = ?,
       unit = ?,
       price_options_json = ?,
       is_active = ?,
@@ -2577,6 +2609,7 @@ app.patch(["/api/admin/products/:productId", "/chat-api/admin/products/:productI
     payload.notice,
     payload.imageUrl,
     payload.price,
+    payload.discountPercent,
     payload.unit,
     payload.priceOptionsJson,
     payload.isActive,

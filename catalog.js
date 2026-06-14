@@ -18,6 +18,7 @@
     image: modal.querySelector("[data-product-modal-image]"),
     title: modal.querySelector("[data-product-modal-title]"),
     meta: modal.querySelector("[data-product-modal-meta]"),
+    price: modal.querySelector("[data-product-modal-price]"),
     description: modal.querySelector("[data-product-modal-description]"),
     facts: modal.querySelector("[data-product-modal-facts]"),
     order: modal.querySelector("[data-product-modal-order]")
@@ -108,8 +109,18 @@
     return [{ unit: product.unit || product.subtitle || "шт", price: Number(product.price || 0) }];
   }
 
+  function productDiscountPercent(product) {
+    return Math.max(0, Number(product?.discountPercent || 0));
+  }
+
   function firstOption(product) {
     return priceOptions(product)[0];
+  }
+
+  function originalFirstOption(product) {
+    if (product.originalPriceOptions?.length) return product.originalPriceOptions[0];
+    const first = firstOption(product);
+    return { unit: first?.unit || product.unit || "", price: Number(product.originalPrice || first?.price || 0) };
   }
 
   function formatPrice(product) {
@@ -118,8 +129,17 @@
     return product.priceOptions?.length ? `от ${money(option.price)}` : money(option.price);
   }
 
+  function formatOriginalPrice(product) {
+    const option = originalFirstOption(product);
+    if (!Number(option?.price)) return "";
+    return product.originalPriceOptions?.length ? `от ${money(option.price)}` : money(option.price);
+  }
+
   function formatPriceOption(option) {
-    return `${option.unit} - ${money(option.price)}`;
+    const original = Number(option.originalPrice || option.price || 0);
+    return original > Number(option.price || 0)
+      ? `${option.unit} - ${money(option.price)} вместо ${money(original)}`
+      : `${option.unit} - ${money(option.price)}`;
   }
 
   function formatProductUnits(product) {
@@ -127,8 +147,24 @@
     return product.unit || product.subtitle || "";
   }
 
-  function cartPayload() {
-    return state.cart.map((item) => ({ slug: item.slug, unit: item.unit, quantity: item.quantity }));
+  function priceMarkup(product) {
+    const current = formatPrice(product);
+    const original = formatOriginalPrice(product);
+    const discount = productDiscountPercent(product);
+    if (!discount || !original || original === current) {
+      return `<span class="price">${escapeHtml(current)}</span>`;
+    }
+    return `<span class="price-stack"><span class="price price--old">${escapeHtml(original)}</span><span class="price">${escapeHtml(current)}</span></span><span class="discount-badge">-${discount}%</span>`;
+  }
+
+  function modalPriceMarkup(product) {
+    const current = formatPrice(product);
+    const original = formatOriginalPrice(product);
+    const discount = productDiscountPercent(product);
+    if (!discount || !original || original === current) {
+      return `<span class="price price--modal">${escapeHtml(current)}</span>`;
+    }
+    return `<div class="modal-price"><span class="price price--old">${escapeHtml(original)}</span><span class="price price--modal">${escapeHtml(current)}</span><span class="discount-badge">-${discount}%</span></div>`;
   }
 
   function normalizedPromoCode(value) {
@@ -420,7 +456,7 @@
           ${renderCardPrices(product)}
           <button class="product-card__details" type="button" data-product-detail="${escapeHtml(product.slug)}">Подробнее</button>
           <div class="product-card__buy">
-            <span class="price">${escapeHtml(formatPrice(product))}</span>
+            <div class="product-card__price-wrap">${priceMarkup(product)}</div>
             <button class="cart-button" type="button" data-cart-add="${escapeHtml(product.slug)}" data-cart-unit="${escapeHtml(option.unit)}" aria-label="Добавить ${escapeHtml(product.title)} в корзину"><svg class="icon"><use href="#icon-cart"></use></svg></button>
           </div>
         </div>
@@ -503,7 +539,8 @@
     if (!product) return;
     setModalImage(product);
     modalEls.title.textContent = product.title;
-    modalEls.meta.textContent = [product.category, formatProductUnits(product), formatPrice(product)].filter(Boolean).join(" · ");
+    modalEls.meta.textContent = [product.category, formatProductUnits(product)].filter(Boolean).join(" ? ");
+    modalEls.price.innerHTML = modalPriceMarkup(product);
     modalEls.description.innerHTML = `${escapeHtml(modalDescription(product)).replace(/\n/g, "<br>")}${renderBenefits(product)}`;
     delete modalEls.order.dataset.cartAddModal;
     delete modalEls.order.dataset.whatsappProduct;
