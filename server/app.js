@@ -341,9 +341,26 @@ db.exec(`
     payment_id TEXT NOT NULL DEFAULT '',
     payment_url TEXT NOT NULL DEFAULT '',
     payment_status TEXT NOT NULL DEFAULT '',
+    promo_code TEXT NOT NULL DEFAULT '',
+    promo_discount_amount INTEGER NOT NULL DEFAULT 0,
+    promo_details_json TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS promo_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL DEFAULT '',
+    discount_kind TEXT NOT NULL DEFAULT 'percent',
+    discount_value INTEGER NOT NULL DEFAULT 0,
+    max_uses INTEGER NOT NULL DEFAULT 0,
+    starts_at TEXT NOT NULL DEFAULT '',
+    ends_at TEXT NOT NULL DEFAULT '',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
   );
 
 `);
@@ -366,6 +383,15 @@ function ensureOrderSchema() {
   const columns = db.prepare("PRAGMA table_info(orders)").all().map((column) => column.name);
   if (!columns.includes("user_id")) {
     db.exec("ALTER TABLE orders ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE SET NULL");
+  }
+  if (!columns.includes("promo_code")) {
+    db.exec("ALTER TABLE orders ADD COLUMN promo_code TEXT NOT NULL DEFAULT ''");
+  }
+  if (!columns.includes("promo_discount_amount")) {
+    db.exec("ALTER TABLE orders ADD COLUMN promo_discount_amount INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!columns.includes("promo_details_json")) {
+    db.exec("ALTER TABLE orders ADD COLUMN promo_details_json TEXT NOT NULL DEFAULT '{}'");
   }
 }
 
@@ -440,6 +466,9 @@ app.get(["/admin/orders", "/admin/orders/"], (req, res) => {
 });
 app.get(["/admin/payments", "/admin/payments/"], (req, res) => {
   return requireAdminPage(req, res, path.join("admin", "payments", "index.html"));
+});
+app.get(["/admin/promocodes", "/admin/promocodes/"], (req, res) => {
+  return requireAdminPage(req, res, path.join("admin", "promocodes", "index.html"));
 });
 app.use(express.static(ROOT_DIR, {
   extensions: ["html"],
@@ -941,6 +970,141 @@ function parseJsonField(value, fallback) {
   }
 }
 
+function normalizePromoCode(value) {
+  return cleanText(value, 64).replace(/\s+/g, "").toUpperCase();
+}
+
+function normalizeIsoDateTime(value) {
+  const text = cleanText(value, 40);
+  if (!text) return "";
+  const date = new Date(text);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function promoCodeUsageCount(promoId) {
+  return Number(db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM orders
+    WHERE promo_details_json != '{}' AND json_extract(promo_details_json, '$.id') = ?
+  `).get(Number(promoId))?.count || 0);
+}
+
+function normalizePromoRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    code: row.code,
+    description: row.description,
+    discountKind: row.discount_kind,
+    discountValue: row.discount_value,
+    maxUses: row.max_uses,
+    startsAt: row.starts_at || "",
+    endsAt: row.ends_at || "",
+    isActive: Boolean(row.is_active),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function publicPromoCode(row) {
+  const promo = normalizePromoRow(row);
+  if (!promo) return null;
+  const usageCount = promoCodeUsageCount(promo.id);
+  return {
+    ...promo,
+    usageCount,
+    remainingUses: promo.maxUses > 0 ? Math.max(0, promo.maxUses - usageCount) : null
+  };
+}
+
+function getPromoCodeById(promoId) {
+  return normalizePromoRow(db.prepare("SELECT * FROM promo_codes WHERE id = ?").get(Number(promoId)));
+}
+
+function getPromoCodeByCode(code) {
+  return normalizePromoRow(db.prepare("SELECT * FROM promo_codes WHERE code = ?").get(normalizePromoCode(code)));
+}
+
+function promoCodePayloadFromBody(body, existing = null) {
+  const discountKind = cleanText(body.discountKind ?? body.discount_kind, 32) === "fixed" ? "fixed" : "percent";
+  const payload = {
+    code: normalizePromoCode(body.code ?? existing?.code ?? ""),
+    description: cleanText(body.description ?? existing?.description, 240),
+    discountKind,
+    discountValue: Math.max(0, cleanInteger(body.discountValue ?? body.discount_value, existing?.discountValue || 0)),
+    maxUses: Math.max(0, cleanInteger(body.maxUses ?? body.max_uses, existing?.maxUses || 0)),
+    startsAt: normalizeIsoDateTime(body.startsAt ?? body.starts_at ?? existing?.startsAt),
+    endsAt: normalizeIsoDateTime(body.endsAt ?? body.ends_at ?? existing?.endsAt),
+    isActive: boolFromValue(body.isActive ?? body.is_active, existing?.isActive ?? true)
+  };
+  if (payload.discountKind === "percent") {
+    payload.discountValue = Math.min(100, payload.discountValue || 0);
+  }
+  return payload;
+}
+
+function promoDiscountAmount(promo, subtotal) {
+  const base = Math.max(0, cleanInteger(subtotal, 0));
+  if (!promo || base <= 0) return 0;
+  if (promo.discountKind === "fixed") {
+    return Math.min(base, Math.max(0, cleanInteger(promo.discountValue, 0)));
+  }
+  const percent = Math.min(100, Math.max(0, cleanInteger(promo.discountValue, 0)));
+  return Math.min(base, Math.round(base * percent / 100));
+}
+
+function validatePromoCodeForSubtotal(promo, subtotal) {
+  if (!promo) {
+    return { ok: false, error: "Промокод не найден." };
+  }
+  if (!promo.isActive) {
+    return { ok: false, error: "Промокод отключён." };
+  }
+  const now = Date.now();
+  if (promo.startsAt) {
+    const startsAt = new Date(promo.startsAt).getTime();
+    if (Number.isFinite(startsAt) && startsAt > now) {
+      return { ok: false, error: "Промокод ещё не активен." };
+    }
+  }
+  if (promo.endsAt) {
+    const endsAt = new Date(promo.endsAt).getTime();
+    if (Number.isFinite(endsAt) && endsAt < now) {
+      return { ok: false, error: "Срок действия промокода истёк." };
+    }
+  }
+  const usageCount = promoCodeUsageCount(promo.id);
+  if (promo.maxUses > 0 && usageCount >= promo.maxUses) {
+    return { ok: false, error: "Лимит использований промокода исчерпан." };
+  }
+  const discountAmount = promoDiscountAmount(promo, subtotal);
+  if (discountAmount <= 0) {
+    return { ok: false, error: "Промокод не даёт скидку для этой корзины." };
+  }
+  return {
+    ok: true,
+    promo: {
+      id: promo.id,
+      code: promo.code,
+      description: promo.description,
+      discountKind: promo.discountKind,
+      discountValue: promo.discountValue,
+      discountAmount,
+      usageCount,
+      maxUses: promo.maxUses,
+      remainingUses: promo.maxUses > 0 ? Math.max(0, promo.maxUses - usageCount) : null
+    }
+  };
+}
+
+function resolvePromoCode(code, subtotal) {
+  const normalizedCode = normalizePromoCode(code);
+  if (!normalizedCode) {
+    return { ok: true, promo: null };
+  }
+  return validatePromoCodeForSubtotal(getPromoCodeByCode(normalizedCode), subtotal);
+}
+
 function publicOrder(row) {
   return {
     id: row.id,
@@ -952,6 +1116,9 @@ function publicOrder(row) {
     customerComment: row.customer_comment,
     items: parseJsonField(row.items_json, []),
     delivery: parseJsonField(row.delivery_json, {}),
+    promo: parseJsonField(row.promo_details_json, {}),
+    promoCode: row.promo_code || "",
+    promoDiscountAmount: row.promo_discount_amount || 0,
     subtotal: row.subtotal,
     deliveryPrice: row.delivery_price,
     total: row.total,
@@ -1056,10 +1223,11 @@ function normalizeOrderItems(rawItems) {
   return normalized;
 }
 
-function orderTotals(items, deliveryPrice = 0) {
+function orderTotals(items, deliveryPrice = 0, discountAmount = 0) {
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
   const delivery = Math.max(0, cleanInteger(deliveryPrice, 0));
-  return { subtotal, deliveryPrice: delivery, total: subtotal + delivery };
+  const discount = Math.min(subtotal, Math.max(0, cleanInteger(discountAmount, 0)));
+  return { subtotal, discountAmount: discount, deliveryPrice: delivery, total: subtotal - discount + delivery };
 }
 
 function cdekConfigured() {
@@ -1174,12 +1342,49 @@ function yookassaReceiptCustomer(order) {
   };
 }
 
+function discountedOrderItems(order) {
+  const items = Array.isArray(order.items) ? order.items.map((item) => ({
+    ...item,
+    amount: Math.max(0, cleanInteger(item.amount, cleanInteger(item.price, 0) * cleanInteger(item.quantity, 1)))
+  })) : [];
+  const discountAmount = Math.min(
+    items.reduce((sum, item) => sum + item.amount, 0),
+    Math.max(0, cleanInteger(order.promoDiscountAmount || order.promo?.discountAmount, 0))
+  );
+  if (!items.length || discountAmount <= 0) {
+    return items;
+  }
+
+  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+  const allocations = items.map((item) => {
+    const raw = discountAmount * item.amount / subtotal;
+    return {
+      amount: Math.floor(raw),
+      remainder: raw - Math.floor(raw)
+    };
+  });
+  let remainder = discountAmount - allocations.reduce((sum, item) => sum + item.amount, 0);
+  const orderByRemainder = allocations
+    .map((item, index) => ({ index, remainder: item.remainder }))
+    .sort((left, right) => right.remainder - left.remainder);
+  for (const entry of orderByRemainder) {
+    if (remainder <= 0) break;
+    allocations[entry.index].amount += 1;
+    remainder -= 1;
+  }
+
+  return items.map((item, index) => ({
+    ...item,
+    amount: Math.max(0, item.amount - allocations[index].amount)
+  }));
+}
+
 function yookassaReceiptItems(order) {
-  const items = order.items.map((item) => ({
-    description: cleanText(`${item.title}${item.unit ? `, ${item.unit}` : ""}`, 128),
-    quantity: Number(item.quantity).toFixed(3),
+  const items = discountedOrderItems(order).map((item) => ({
+    description: cleanText(`${item.title}${item.unit ? `, ${item.unit}` : ""}${item.quantity > 1 ? ` x${item.quantity}` : ""}`, 128),
+    quantity: "1.000",
     amount: {
-      value: Number(item.price || 0).toFixed(2),
+      value: Number(item.amount || 0).toFixed(2),
       currency: "RUB"
     },
     vat_code: 1,
@@ -2037,6 +2242,25 @@ app.post(["/api/delivery/calculate", "/chat-api/delivery/calculate"], async (req
   }
 });
 
+app.post(["/api/promocodes/preview", "/chat-api/promocodes/preview"], (req, res) => {
+  const items = normalizeOrderItems(req.body.items);
+  if (!items.length) {
+    return res.status(400).json({ error: "Корзина пуста." });
+  }
+  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+  const result = resolvePromoCode(req.body.code, subtotal);
+  if (!result.ok) {
+    return res.status(400).json({ error: result.error });
+  }
+  const totals = orderTotals(items, 0, result.promo?.discountAmount || 0);
+  return res.json({
+    promo: result.promo,
+    subtotal: totals.subtotal,
+    discountAmount: totals.discountAmount,
+    total: totals.total
+  });
+});
+
 app.post(["/api/orders", "/chat-api/orders"], async (req, res, next) => {
   try {
     const session = getSession(req);
@@ -2069,7 +2293,13 @@ app.post(["/api/orders", "/chat-api/orders"], async (req, res, next) => {
       delivery.pointAddress = cleanText(req.body.delivery?.pointAddress, 300);
     }
 
-    const totals = orderTotals(items, delivery.price);
+    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+    const promoResult = resolvePromoCode(req.body.promoCode, subtotal);
+    if (!promoResult.ok) {
+      return res.status(400).json({ error: promoResult.error });
+    }
+    const promo = promoResult.promo || null;
+    const totals = orderTotals(items, delivery.price, promo?.discountAmount || 0);
     const publicId = `LS-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
     const stamp = nowIso();
     const result = db.prepare(`
@@ -2078,7 +2308,8 @@ app.post(["/api/orders", "/chat-api/orders"], async (req, res, next) => {
         public_id, customer_name, customer_phone, customer_email, customer_comment,
         items_json, delivery_json, subtotal, delivery_price, total, status,
         payment_provider, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        , promo_code, promo_discount_amount, promo_details_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       session?.userId || null,
       publicId,
@@ -2094,7 +2325,10 @@ app.post(["/api/orders", "/chat-api/orders"], async (req, res, next) => {
       "created",
       "yookassa",
       stamp,
-      stamp
+      stamp,
+      promo?.code || "",
+      totals.discountAmount,
+      JSON.stringify(promo || {})
     );
 
     let order = publicOrder(db.prepare("SELECT * FROM orders WHERE id = ?").get(Number(result.lastInsertRowid)));
@@ -2172,6 +2406,91 @@ app.patch(["/api/admin/store-settings", "/chat-api/admin/store-settings"], requi
 app.get(["/api/admin/orders", "/chat-api/admin/orders"], requireAdmin, (_req, res) => {
   const rows = db.prepare("SELECT * FROM orders ORDER BY id DESC LIMIT 100").all();
   res.json({ orders: rows.map(publicOrder) });
+});
+
+app.get(["/api/admin/promocodes", "/chat-api/admin/promocodes"], requireAdmin, (_req, res) => {
+  const rows = db.prepare("SELECT * FROM promo_codes ORDER BY updated_at DESC, id DESC").all();
+  res.json({ promoCodes: rows.map(publicPromoCode) });
+});
+
+app.post(["/api/admin/promocodes", "/chat-api/admin/promocodes"], requireAdmin, (req, res) => {
+  const payload = promoCodePayloadFromBody(req.body);
+  if (!payload.code) {
+    return res.status(400).json({ error: "Код промокода обязателен." });
+  }
+  if (!payload.discountValue) {
+    return res.status(400).json({ error: "Укажите размер скидки." });
+  }
+  const existing = getPromoCodeByCode(payload.code);
+  if (existing) {
+    return res.status(400).json({ error: "Промокод с таким кодом уже существует." });
+  }
+  const stamp = nowIso();
+  const result = db.prepare(`
+    INSERT INTO promo_codes(
+      code, description, discount_kind, discount_value, max_uses,
+      starts_at, ends_at, is_active, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    payload.code,
+    payload.description,
+    payload.discountKind,
+    payload.discountValue,
+    payload.maxUses,
+    payload.startsAt,
+    payload.endsAt,
+    payload.isActive ? 1 : 0,
+    stamp,
+    stamp
+  );
+  res.status(201).json({ promoCode: publicPromoCode(db.prepare("SELECT * FROM promo_codes WHERE id = ?").get(Number(result.lastInsertRowid))) });
+});
+
+app.patch(["/api/admin/promocodes/:promoCodeId", "/chat-api/admin/promocodes/:promoCodeId"], requireAdmin, (req, res) => {
+  const promoCodeId = Number(req.params.promoCodeId);
+  const existing = getPromoCodeById(promoCodeId);
+  if (!existing) {
+    return res.status(404).json({ error: "Промокод не найден." });
+  }
+  const payload = promoCodePayloadFromBody(req.body, existing);
+  if (!payload.code) {
+    return res.status(400).json({ error: "Код промокода обязателен." });
+  }
+  if (!payload.discountValue) {
+    return res.status(400).json({ error: "Укажите размер скидки." });
+  }
+  const duplicate = getPromoCodeByCode(payload.code);
+  if (duplicate && Number(duplicate.id) !== promoCodeId) {
+    return res.status(400).json({ error: "Промокод с таким кодом уже существует." });
+  }
+  db.prepare(`
+    UPDATE promo_codes
+    SET code = ?, description = ?, discount_kind = ?, discount_value = ?, max_uses = ?,
+        starts_at = ?, ends_at = ?, is_active = ?, updated_at = ?
+    WHERE id = ?
+  `).run(
+    payload.code,
+    payload.description,
+    payload.discountKind,
+    payload.discountValue,
+    payload.maxUses,
+    payload.startsAt,
+    payload.endsAt,
+    payload.isActive ? 1 : 0,
+    nowIso(),
+    promoCodeId
+  );
+  res.json({ promoCode: publicPromoCode(db.prepare("SELECT * FROM promo_codes WHERE id = ?").get(promoCodeId)) });
+});
+
+app.delete(["/api/admin/promocodes/:promoCodeId", "/chat-api/admin/promocodes/:promoCodeId"], requireAdmin, (req, res) => {
+  const promoCodeId = Number(req.params.promoCodeId);
+  const existing = getPromoCodeById(promoCodeId);
+  if (!existing) {
+    return res.status(404).json({ error: "Промокод не найден." });
+  }
+  db.prepare("DELETE FROM promo_codes WHERE id = ?").run(promoCodeId);
+  res.json({ ok: true, promoCodeId });
 });
 
 app.post(["/api/admin/products", "/chat-api/admin/products"], requireAdmin, (req, res) => {

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Промокоды | Лавка Шамана</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/images/icon-64.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/products.css">
+</head>
+<body data-admin-view="promocodes">
+  <div class="admin-shell">
+    <header class="admin-header">
+      <div>
+        <p class="eyebrow">Скидки и акции</p>
+        <h1>Промокоды</h1>
+      </div>
+      <nav class="admin-nav" aria-label="Админ-навигация">
+        <a href="/admin/products">Товары</a>
+        <a href="/admin/articles">Статьи</a>
+        <a href="/admin/orders">Заказы</a>
+        <a href="/admin/payments">Платежи</a>
+        <a class="is-active" href="/admin/promocodes">Промокоды</a>
+        <a href="/">Сайт</a>
+        <a href="/chat/admin">Чат</a>
+        <a href="/chat">Войти</a>
+      </nav>
+    </header>
+
+    <section class="store-settings-panel" aria-labelledby="promocodes-summary-title">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">Сводка</p>
+          <h2 id="promocodes-summary-title">Список промокодов</h2>
+          <span id="promocodes-summary-status">Загрузка промокодов...</span>
+        </div>
+        <button class="button" type="button" id="refresh-promocodes">Обновить</button>
+      </div>
+      <div class="summary-grid" id="promocodes-summary"></div>
+    </section>
+
+    <main class="admin-layout">
+      <aside class="product-list-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Промокоды</h2>
+            <span id="promocode-count">0 промокодов</span>
+          </div>
+          <button class="button button--gold" type="button" id="new-promocode">Новый</button>
+        </div>
+        <div class="record-list" id="promocode-list" aria-live="polite"></div>
+      </aside>
+
+      <section class="editor-panel" aria-labelledby="editor-title">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Карточка промокода</p>
+            <h2 id="editor-title">Новый промокод</h2>
+          </div>
+          <div class="editor-actions">
+            <button class="button" type="button" id="delete-promocode">Удалить</button>
+            <button class="button button--gold" type="button" id="save-promocode">Сохранить</button>
+          </div>
+        </div>
+
+        <form class="product-form" id="promocode-form">
+          <input type="hidden" name="id">
+
+          <div class="form-grid">
+            <label>
+              <span>Код промокода</span>
+              <input name="code" type="text" maxlength="64" required placeholder="Например SOMA10">
+            </label>
+            <label>
+              <span>Статус</span>
+              <select name="isActive">
+                <option value="true">Активен</option>
+                <option value="false">Отключён</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            <span>Описание</span>
+            <textarea name="description" rows="3" maxlength="240" placeholder="Короткое описание для команды: летняя скидка, промо для подписчиков и т.д."></textarea>
+          </label>
+
+          <div class="form-grid form-grid--thirds">
+            <label>
+              <span>Тип скидки</span>
+              <select name="discountKind">
+                <option value="percent">Процент</option>
+                <option value="fixed">Фиксированная сумма</option>
+              </select>
+            </label>
+            <label>
+              <span>Размер скидки</span>
+              <input name="discountValue" type="number" min="0" step="1" placeholder="10">
+            </label>
+            <label>
+              <span>Лимит использований</span>
+              <input name="maxUses" type="number" min="0" step="1" placeholder="0 = без лимита">
+            </label>
+          </div>
+
+          <div class="form-grid">
+            <label>
+              <span>Действует с</span>
+              <input name="startsAt" type="datetime-local">
+            </label>
+            <label>
+              <span>Действует до</span>
+              <input name="endsAt" type="datetime-local">
+            </label>
+          </div>
+
+          <section class="detail-section">
+            <h3>Статистика использования</h3>
+            <div class="detail-row"><span>Использований</span><strong id="promocode-usage-count">—</strong></div>
+            <div class="detail-row"><span>Осталось</span><strong id="promocode-remaining-uses">—</strong></div>
+          </section>
+        </form>
+      </section>
+    </main>
+
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+  </div>
+
+  <noscript><div><img src="https://mc.yandex.ru/watch/108620522" style="position:absolute; left:-9999px;" alt=""></div></noscript>
+  <script src="/yandex-metrika.js" defer></script>
+  <script src="/admin/promocodes.js" defer></script>
+</body>
+</html>

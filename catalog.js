@@ -10,7 +10,8 @@
   const state = {
     cart: loadCart(),
     settings: { deliveryEnabled: true, paymentEnabled: true, cdekSearchReady: false, cdekReady: false, yookassaReady: false },
-    checkout: { city: null, points: [], selectedPoint: null, delivery: null }
+    checkout: { city: null, points: [], selectedPoint: null, delivery: null },
+    promo: { code: "", applied: null, discountAmount: 0, message: "", isError: false }
   };
 
   const modalEls = {
@@ -130,10 +131,101 @@
     return state.cart.map((item) => ({ slug: item.slug, unit: item.unit, quantity: item.quantity }));
   }
 
+  function normalizedPromoCode(value) {
+    return String(value || "").trim().replace(/\s+/g, "").toUpperCase();
+  }
+
   function cartTotals() {
     const subtotal = state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const deliveryPrice = state.checkout.delivery?.price || 0;
-    return { subtotal, deliveryPrice, total: subtotal + deliveryPrice };
+    const discountAmount = Math.min(subtotal, Math.max(0, Number(state.promo.discountAmount || 0)));
+    return { subtotal, discountAmount, deliveryPrice, total: subtotal - discountAmount + deliveryPrice };
+  }
+
+  function setPromoMessage(message, isError = false) {
+    state.promo.message = String(message || "");
+    state.promo.isError = Boolean(isError);
+  }
+
+  function renderPromoState() {
+    if (!cartEls.promoInput) return;
+    const applied = state.promo.applied;
+    const currentCode = normalizedPromoCode(cartEls.promoInput.value);
+    const appliedCode = normalizedPromoCode(applied?.code);
+    if (currentCode !== appliedCode) {
+      cartEls.promoInput.value = state.promo.code || "";
+    }
+    cartEls.promoInput.classList.toggle("is-applied", Boolean(applied));
+    cartEls.promoApplyButton.textContent = applied ? "Применён" : "Применить";
+    cartEls.promoApplyButton.disabled = !state.cart.length;
+    cartEls.promoNote.textContent = state.promo.message || "Введите промокод, чтобы пересчитать итог заказа.";
+    cartEls.promoNote.classList.toggle("is-error", Boolean(state.promo.message && state.promo.isError));
+    cartEls.promoNote.classList.toggle("is-success", Boolean(state.promo.message && !state.promo.isError && applied));
+  }
+
+  function clearPromoState({ keepCode = true, message = "", isError = false } = {}) {
+    state.promo.applied = null;
+    state.promo.discountAmount = 0;
+    state.promo.code = keepCode ? normalizedPromoCode(cartEls?.promoInput?.value || state.promo.code) : "";
+    setPromoMessage(message, isError);
+  }
+
+  async function syncPromoState({ silent = false } = {}) {
+    const code = normalizedPromoCode(cartEls?.promoInput?.value || state.promo.code);
+    state.promo.code = code;
+    if (!code) {
+      clearPromoState({ keepCode: true, message: silent ? "" : "Промокод не указан." });
+      renderPromoState();
+      renderSummary();
+      return true;
+    }
+    if (!state.cart.length) {
+      clearPromoState({ keepCode: true, message: "" });
+      renderPromoState();
+      renderSummary();
+      return false;
+    }
+    try {
+      cartEls.promoApplyButton.disabled = true;
+      cartEls.promoApplyButton.textContent = "Проверяем...";
+      const data = await fetchJson("/chat-api/promocodes/preview", {
+        method: "POST",
+        body: JSON.stringify({ code, items: cartPayload() })
+      });
+      state.promo.applied = data.promo || null;
+      state.promo.discountAmount = Number(data.discountAmount || 0);
+      state.promo.code = code;
+      setPromoMessage(
+        state.promo.discountAmount > 0
+          ? `Промокод ${code} применён. Скидка ${money(state.promo.discountAmount)}.`
+          : `Промокод ${code} не даёт скидку для этой корзины.`,
+        !(state.promo.discountAmount > 0)
+      );
+      renderPromoState();
+      renderSummary();
+      return true;
+    } catch (error) {
+      clearPromoState({ keepCode: true, message: error.message, isError: true });
+      renderPromoState();
+      renderSummary();
+      return false;
+    } finally {
+      if (cartEls.promoApplyButton) {
+        cartEls.promoApplyButton.disabled = !state.cart.length;
+        cartEls.promoApplyButton.textContent = state.promo.applied ? "Применён" : "Применить";
+      }
+    }
+  }
+
+  function handleCartChanged() {
+    state.checkout.delivery = null;
+    if (state.promo.applied) {
+      void syncPromoState({ silent: true });
+    } else {
+      clearPromoState({ keepCode: true, message: state.promo.code ? "Изменили корзину. Нажмите «Применить», чтобы пересчитать скидку." : "" });
+      renderPromoState();
+      renderSummary();
+    }
   }
 
   function canCheckoutCartItem(item) {
@@ -159,7 +251,7 @@
     } else {
       state.cart.push({ key, slug, title: product.title, unit: option.unit, price: Number(option.price || 0), imageUrl: product.imageUrl, quantity: 1 });
     }
-    state.checkout.delivery = null;
+    handleCartChanged();
     saveCart();
     renderCart();
     openCart();
@@ -169,14 +261,14 @@
     const item = state.cart.find((entry) => entry.key === key);
     if (!item) return;
     item.quantity = Math.max(1, Math.min(99, quantity));
-    state.checkout.delivery = null;
+    handleCartChanged();
     saveCart();
     renderCart();
   }
 
   function removeCartItem(key) {
     state.cart = state.cart.filter((item) => item.key !== key);
-    state.checkout.delivery = null;
+    handleCartChanged();
     saveCart();
     renderCart();
   }
@@ -206,6 +298,14 @@
               </div>
               <label><span>Email для чека</span><input name="email" type="email" autocomplete="email" placeholder="Обязателен для онлайн-оплаты"></label>
               <label><span>Комментарий</span><textarea name="comment" rows="3" placeholder="Удобное время, пожелания к заказу"></textarea></label>
+              <section class="checkout-promo">
+                <h3>Промокод</h3>
+                <div class="checkout-inline">
+                  <input name="promoCode" type="text" autocomplete="off" placeholder="Например SOMA10">
+                  <button class="button" type="button" data-promo-apply>Применить</button>
+                </div>
+                <p class="checkout-note checkout-note--promo" data-promo-note>Введите промокод, чтобы пересчитать итог заказа.</p>
+              </section>
               <section class="checkout-delivery" data-delivery-section>
                 <h3>Доставка CDEK</h3>
                 <label><span>Город</span><input name="city" type="text" autocomplete="off" placeholder="Начните вводить город"></label>
@@ -229,6 +329,9 @@
       count: root.querySelector("[data-cart-count]"),
       list: root.querySelector("[data-cart-list]"),
       form: root.querySelector("[data-checkout-form]"),
+      promoInput: root.querySelector('input[name="promoCode"]'),
+      promoApplyButton: root.querySelector("[data-promo-apply]"),
+      promoNote: root.querySelector("[data-promo-note]"),
       deliverySection: root.querySelector("[data-delivery-section]"),
       cityInput: root.querySelector('input[name="city"]'),
       cityOptions: root.querySelector("[data-city-options]"),
@@ -432,7 +535,7 @@
     const nextCart = state.cart.filter(canCheckoutCartItem);
     if (nextCart.length !== state.cart.length) {
       state.cart = nextCart;
-      state.checkout.delivery = null;
+      handleCartChanged();
       saveCart();
     }
     const count = state.cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -442,6 +545,9 @@
     if (!state.cart.length) {
       cartEls.list.innerHTML = '<p class="cart-empty">Корзина пока пустая.</p>';
       cartEls.form.hidden = true;
+      clearPromoState({ keepCode: false, message: "" });
+      renderPromoState();
+      renderSummary();
       return;
     }
     cartEls.form.hidden = false;
@@ -459,15 +565,19 @@
     submit.disabled = !paymentReady;
     submit.textContent = paymentReady ? "Перейти к оплате" : "Оплата скоро будет доступна";
     showCheckoutError(paymentReady ? "" : "ЮКасса появится после подключения ключей на сервере.");
+    renderPromoState();
     renderSummary();
   }
 
   function renderSummary() {
     const totals = cartTotals();
+    const promoLine = totals.discountAmount > 0
+      ? `<div><span>Промокод ${escapeHtml(state.promo.applied?.code || state.promo.code || "")}</span><strong>−${money(totals.discountAmount)}</strong></div>`
+      : "";
     const deliveryLine = state.settings.deliveryEnabled && state.settings.cdekReady
       ? `<span>Доставка CDEK</span><strong>${state.checkout.delivery ? money(totals.deliveryPrice) : "нужно выбрать ПВЗ"}</strong>`
       : `<span>Доставка</span><strong>${state.settings.deliveryEnabled ? "требует настройки" : "отключена"}</strong>`;
-    cartEls.summary.innerHTML = `<div><span>Товары</span><strong>${money(totals.subtotal)}</strong></div><div>${deliveryLine}</div><div class="cart-summary__total"><span>Итого</span><strong>${money(totals.total)}</strong></div>`;
+    cartEls.summary.innerHTML = `<div><span>Товары</span><strong>${money(totals.subtotal)}</strong></div>${promoLine}<div>${deliveryLine}</div><div class="cart-summary__total"><span>Итого</span><strong>${money(totals.total)}</strong></div>`;
     cartEls.deliveryNote.textContent = state.checkout.delivery
       ? `CDEK: ${money(state.checkout.delivery.price)}${state.checkout.delivery.periodMin ? `, ${state.checkout.delivery.periodMin}-${state.checkout.delivery.periodMax || state.checkout.delivery.periodMin} дн.` : ""}`
       : "Стоимость доставки рассчитается после выбора пункта выдачи.";
@@ -578,7 +688,15 @@
     submit.disabled = true;
     submit.textContent = "Создаём заказ...";
     try {
-      const data = await fetchJson("/chat-api/orders", { method: "POST", body: JSON.stringify({ customer: { name: form.get("name"), phone: form.get("phone"), email: form.get("email"), comment: form.get("comment") }, delivery, items: cartPayload() }) });
+      const promoCode = normalizedPromoCode(form.get("promoCode"));
+      if (promoCode && normalizedPromoCode(state.promo.applied?.code) !== promoCode) {
+        const ok = await syncPromoState();
+        if (!ok) {
+          showCheckoutError(state.promo.message || "Промокод не удалось применить.");
+          return;
+        }
+      }
+      const data = await fetchJson("/chat-api/orders", { method: "POST", body: JSON.stringify({ customer: { name: form.get("name"), phone: form.get("phone"), email: form.get("email"), comment: form.get("comment") }, delivery, items: cartPayload(), promoCode }) });
       if (data.paymentUrl) {
         state.cart = [];
         saveCart();
@@ -664,6 +782,27 @@
   });
 
   cartEls.cityInput.addEventListener("input", scheduleCitySearch);
+  cartEls.promoInput.addEventListener("input", () => {
+    const code = normalizedPromoCode(cartEls.promoInput.value);
+    state.promo.code = code;
+    if (!code) {
+      clearPromoState({ keepCode: true, message: "Введите промокод, чтобы пересчитать итог заказа." });
+    } else if (normalizedPromoCode(state.promo.applied?.code) !== code) {
+      clearPromoState({ keepCode: true, message: "Нажмите «Применить», чтобы проверить промокод." });
+    }
+    renderPromoState();
+    renderSummary();
+  });
+  cartEls.promoApplyButton.addEventListener("click", async () => {
+    if (!state.cart.length) return;
+    if (!normalizedPromoCode(cartEls.promoInput.value)) {
+      clearPromoState({ keepCode: true, message: "Введите промокод.", isError: true });
+      renderPromoState();
+      renderSummary();
+      return;
+    }
+    await syncPromoState();
+  });
   cartEls.cityOptions.addEventListener("click", (event) => {
     const button = event.target.closest("[data-city-code]");
     if (!button) return;
