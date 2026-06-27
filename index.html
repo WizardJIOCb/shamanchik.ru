@@ -2032,10 +2032,28 @@
       background: #a77736;
       box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
       cursor: pointer;
+      transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
     }
 
     .cart-fab[hidden] {
       display: none;
+    }
+
+    .cart-shell.has-items .cart-fab,
+    .cart-fab.is-highlighted {
+      border-color: rgba(255, 213, 140, 0.95);
+      background: #c58b37;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42), 0 0 0 7px rgba(255, 213, 140, 0.16);
+    }
+
+    .cart-fab.is-highlighted {
+      animation: cartPulse 720ms ease;
+    }
+
+    @keyframes cartPulse {
+      0% { transform: scale(1); }
+      38% { transform: scale(1.1); }
+      100% { transform: scale(1); }
     }
 
     .cart-fab .icon { width: 24px; height: 24px; }

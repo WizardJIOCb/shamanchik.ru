@@ -25,6 +25,7 @@
   };
 
   const cartEls = createCartUi();
+  let cartHighlightTimer = null;
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -290,7 +291,7 @@
     handleCartChanged();
     saveCart();
     renderCart();
-    openCart();
+    highlightCartButton();
   }
 
   function setCartQuantity(key, quantity) {
@@ -386,6 +387,16 @@
   function closeCart() {
     cartEls.panel.hidden = true;
     if (modal.hidden) document.body.style.overflow = "";
+  }
+
+  function highlightCartButton() {
+    window.clearTimeout(cartHighlightTimer);
+    cartEls.fab.classList.remove("is-highlighted");
+    void cartEls.fab.offsetWidth;
+    cartEls.fab.classList.add("is-highlighted");
+    cartHighlightTimer = window.setTimeout(() => {
+      cartEls.fab.classList.remove("is-highlighted");
+    }, 900);
   }
 
   function renderCardPrices(product) {
@@ -578,6 +589,7 @@
     const count = state.cart.reduce((sum, item) => sum + item.quantity, 0);
     cartEls.fab.hidden = !canUseCheckoutPayment();
     cartEls.count.textContent = count;
+    cartEls.fab.setAttribute("aria-label", count ? `Открыть корзину, товаров: ${count}` : "Открыть корзину");
     cartEls.root.classList.toggle("has-items", count > 0);
     if (!state.cart.length) {
       cartEls.list.innerHTML = '<p class="cart-empty">Корзина пока пустая.</p>';
