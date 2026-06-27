@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "ru.shamanchik.app",
+        "sha256_cert_fingerprints": ["CA:81:B3:F1:61:8E:10:5A:C8:5C:DA:2B:CC:40:BA:65:79:BB:3E:2E:9D:2B:1A:88:AD:E7:44:9D:82:58:9D:C8"]
+      }
+    }]

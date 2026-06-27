@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f140f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/manifest.webmanifest">
   <title>Чат Лавки Шамана</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/images/icon-64.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -68,6 +72,7 @@
           <button type="button" class="ghost-button" id="logout-button">Выйти</button>
         </div>
         <button type="button" class="ritual-button ritual-button--dark wide" id="edit-profile-button">Редактировать профиль</button>
+        <button type="button" class="ghost-button wide is-hidden" id="notification-button">Уведомления</button>
         <a href="/chat/admin" class="ghost-button wide is-hidden" id="admin-link">Админка</a>
       </section>
 
@@ -227,5 +232,6 @@
   <noscript><div><img src="https://mc.yandex.ru/watch/108620522" style="position:absolute; left:-9999px;" alt=""></div></noscript>
   <script src="/yandex-metrika.js" defer></script>
   <script src="/chat-assets/chat.js"></script>
+  <script src="/pwa.js" defer></script>
 </body>
 </html>

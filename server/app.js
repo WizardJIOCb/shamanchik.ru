@@ -5,6 +5,7 @@ const http = require("node:http");
 const express = require("express");
 const multer = require("multer");
 const bcrypt = require("bcryptjs");
+const webPush = require("web-push");
 const { DatabaseSync } = require("node:sqlite");
 const { WebSocketServer, WebSocket } = require("ws");
 const { registerArticlesModule } = require("./articles");
@@ -53,6 +54,12 @@ const YOOKASSA_SHOP_ID = process.env.YOOKASSA_SHOP_ID || "";
 const YOOKASSA_SECRET_KEY = process.env.YOOKASSA_SECRET_KEY || "";
 const YOOKASSA_API_URL = process.env.YOOKASSA_API_URL || "https://api.yookassa.ru/v3";
 const SITE_URL = (process.env.SITE_URL || "https://shamanchik.ru").replace(/\/$/, "");
+const generatedVapidKeys = (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY)
+  ? webPush.generateVAPIDKeys()
+  : null;
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || generatedVapidKeys.publicKey;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || generatedVapidKeys.privateKey;
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || `mailto:admin@${new URL(SITE_URL).hostname}`;
 const DEFAULT_CDEK_TARIFF_CODE = 136;
 const DEFAULT_PACKAGE = { length: 20, width: 15, height: 10 };
 const CURATED_CATALOG_PRODUCTS = [
@@ -201,6 +208,11 @@ ensureDirectory(PRODUCT_UPLOAD_DIR);
 ensureDirectory(PRODUCT_ASSETS_DIR);
 
 const db = new DatabaseSync(DB_PATH);
+webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+if (generatedVapidKeys) {
+  console.warn("VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are not set. Generated temporary Web Push keys for this process.");
+}
+
 db.exec(`
   PRAGMA journal_mode = WAL;
   PRAGMA foreign_keys = ON;
@@ -283,6 +295,16 @@ db.exec(`
     created_at TEXT NOT NULL,
     UNIQUE(message_id, user_id, emoji),
     FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    endpoint TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
@@ -428,6 +450,7 @@ const UTF8_CONTENT_TYPES = new Map([
   [".js", "text/javascript; charset=utf-8"],
   [".mjs", "text/javascript; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
+  [".webmanifest", "application/manifest+json; charset=utf-8"],
   [".svg", "image/svg+xml; charset=utf-8"],
   [".txt", "text/plain; charset=utf-8"]
 ]);
@@ -1952,6 +1975,87 @@ function enrichMessages(messages, viewer) {
   }, viewer));
 }
 
+function normalizePushSubscription(input) {
+  const endpoint = String(input?.endpoint || "").trim();
+  const p256dh = String(input?.keys?.p256dh || "").trim();
+  const auth = String(input?.keys?.auth || "").trim();
+  if (!endpoint || !endpoint.startsWith("https://") || !p256dh || !auth) {
+    return null;
+  }
+  return { endpoint, p256dh, auth };
+}
+
+function savePushSubscription(userId, subscription) {
+  const stamp = nowIso();
+  db.prepare(`
+    INSERT INTO push_subscriptions(endpoint, user_id, p256dh, auth, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(endpoint) DO UPDATE SET
+      user_id = excluded.user_id,
+      p256dh = excluded.p256dh,
+      auth = excluded.auth,
+      updated_at = excluded.updated_at
+  `).run(subscription.endpoint, userId, subscription.p256dh, subscription.auth, stamp, stamp);
+}
+
+function deletePushSubscription(endpoint) {
+  db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").run(endpoint);
+}
+
+function listChannelPushSubscriptions(channelId, excludeUserId) {
+  return db.prepare(`
+    SELECT
+      ps.endpoint,
+      ps.p256dh,
+      ps.auth,
+      ps.user_id AS userId
+    FROM push_subscriptions ps
+    JOIN channel_members cm ON cm.user_id = ps.user_id
+    WHERE cm.channel_id = ? AND ps.user_id <> ?
+  `).all(channelId, excludeUserId);
+}
+
+function pushSubscriptionPayload(row) {
+  return {
+    endpoint: row.endpoint,
+    keys: {
+      p256dh: row.p256dh,
+      auth: row.auth
+    }
+  };
+}
+
+function notificationText(message) {
+  const content = cleanText(message.content, 120);
+  if (content) {
+    return content;
+  }
+  return message.attachmentName ? `Файл: ${message.attachmentName}` : "Новое сообщение";
+}
+
+function sendChannelMessagePush(channel, message, actor) {
+  const subscriptions = listChannelPushSubscriptions(channel.id, actor.id);
+  if (!subscriptions.length) return;
+
+  const payload = JSON.stringify({
+    title: `${message.displayName} · ${channel.name}`,
+    body: notificationText(message),
+    url: `/chat?channel=${channel.id}`,
+    icon: "/images/pwa-icon-192.png",
+    badge: "/images/icon-64.png"
+  });
+
+  for (const subscription of subscriptions) {
+    webPush.sendNotification(pushSubscriptionPayload(subscription), payload).catch((error) => {
+      if (error.statusCode === 404 || error.statusCode === 410) {
+        deletePushSubscription(subscription.endpoint);
+        return;
+      }
+      console.error("Web Push delivery failed:", error);
+    });
+  }
+}
+
 const channelSubscribers = new Map();
 
 function broadcastToChannel(channelId, payload) {
@@ -2723,6 +2827,27 @@ app.post("/chat-api/auth/logout", requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+app.get("/chat-api/push/public-key", requireAuth, (_req, res) => {
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+app.post("/chat-api/push/subscriptions", requireAuth, (req, res) => {
+  const subscription = normalizePushSubscription(req.body);
+  if (!subscription) {
+    return res.status(400).json({ error: "Некорректная push-подписка." });
+  }
+  savePushSubscription(req.user.id, subscription);
+  res.status(201).json({ ok: true });
+});
+
+app.delete("/chat-api/push/subscriptions", requireAuth, (req, res) => {
+  const endpoint = String(req.body?.endpoint || "").trim();
+  if (endpoint) {
+    deletePushSubscription(endpoint);
+  }
+  res.json({ ok: true });
+});
+
 app.get("/chat-api/channels", requireAuth, (req, res) => {
   res.json({ channels: listChannels(req.user.id, req.query.q || "") });
 });
@@ -2885,6 +3010,7 @@ app.post("/chat-api/channels/:channelId/messages", requireAuth, upload.single("f
     message: payload,
     channel: channelSummary
   });
+  sendChannelMessagePush(channelSummary, payload, req.user);
   broadcastPresence(channel.id);
 
   res.status(201).json({

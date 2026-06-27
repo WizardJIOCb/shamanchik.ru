@@ -1,0 +1,75 @@
+{
+  "packageId": "ru.shamanchik.app",
+  "host": "shamanchik.ru",
+  "name": "Лавка Шамана",
+  "launcherName": "Лавка",
+  "display": "standalone",
+  "themeColor": "#0F140F",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#070A08",
+  "enableNotifications": true,
+  "startUrl": "/?source=pwa",
+  "iconUrl": "http://localhost:3210/images/pwa-icon-512.png",
+  "maskableIconUrl": "http://localhost:3210/images/pwa-icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "C:\\Projects\\shamanchik.ru\\android-twa\\android.keystore",
+    "alias": "shamanchik"
+  },
+  "appVersionName": "1",
+  "appVersionCode": 2,
+  "shortcuts": [
+    {
+      "name": "Каталог",
+      "shortName": "Каталог",
+      "url": "http://localhost:3210/#products",
+      "chosenIconUrl": "http://localhost:3210/images/pwa-icon-192.png"
+    },
+    {
+      "name": "Чат",
+      "shortName": "Чат",
+      "url": "http://localhost:3210/chat",
+      "chosenIconUrl": "http://localhost:3210/images/pwa-icon-192.png"
+    },
+    {
+      "name": "Знания",
+      "shortName": "Знания",
+      "url": "http://localhost:3210/knowledge",
+      "chosenIconUrl": "http://localhost:3210/images/pwa-icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "http://localhost:3210/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "http://localhost:3210/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [
+    {
+      "name": "local-release",
+      "value": "CA:81:B3:F1:61:8E:10:5A:C8:5C:DA:2B:CC:40:BA:65:79:BB:3E:2E:9D:2B:1A:88:AD:E7:44:9D:82:58:9D:C8"
+    }
+  ],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "appVersion": "1"
+}

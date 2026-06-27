@@ -5,7 +5,9 @@ const state = {
   messages: [],
   members: [],
   socket: null,
-  reconnectTimer: null
+  reconnectTimer: null,
+  pushSupported: "serviceWorker" in navigator && "PushManager" in window && "Notification" in window,
+  pushSubscribed: false
 };
 
 const REACTION_OPTIONS = ["🍄", "🌿", "🔥", "😀", "😌", "😍", "😎", "😂", "😇", "🤝"];
@@ -20,6 +22,7 @@ const dom = {
   selfUsername: document.getElementById("self-username"),
   logoutButton: document.getElementById("logout-button"),
   editProfileButton: document.getElementById("edit-profile-button"),
+  notificationButton: document.getElementById("notification-button"),
   adminLink: document.getElementById("admin-link"),
   channelPanel: document.getElementById("channel-panel"),
   channelSearch: document.getElementById("channel-search"),
@@ -66,6 +69,99 @@ async function api(url, options = {}) {
     throw new Error(data.error || "Не удалось выполнить запрос.");
   }
   return data;
+}
+
+function urlBase64ToUint8Array(value) {
+  const padding = "=".repeat((4 - value.length % 4) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const output = new Uint8Array(rawData.length);
+  for (let index = 0; index < rawData.length; index += 1) {
+    output[index] = rawData.charCodeAt(index);
+  }
+  return output;
+}
+
+async function getServiceWorkerRegistration() {
+  if (!state.pushSupported) return null;
+  await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  return navigator.serviceWorker.ready;
+}
+
+async function getCurrentPushSubscription() {
+  const registration = await getServiceWorkerRegistration();
+  if (!registration) return null;
+  return registration.pushManager.getSubscription();
+}
+
+function setNotificationButton(label, disabled = false) {
+  if (!dom.notificationButton) return;
+  dom.notificationButton.textContent = label;
+  dom.notificationButton.disabled = disabled;
+}
+
+async function refreshNotificationButton() {
+  if (!dom.notificationButton) return;
+  if (!state.me || !state.pushSupported) {
+    dom.notificationButton.classList.add("is-hidden");
+    return;
+  }
+
+  dom.notificationButton.classList.remove("is-hidden");
+  if (Notification.permission === "denied") {
+    state.pushSubscribed = false;
+    setNotificationButton("Уведомления запрещены", true);
+    return;
+  }
+
+  const subscription = await getCurrentPushSubscription();
+  state.pushSubscribed = Boolean(subscription);
+  if (subscription) {
+    await api("/chat-api/push/subscriptions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(subscription)
+    });
+  }
+  setNotificationButton(state.pushSubscribed ? "Отключить уведомления" : "Включить уведомления");
+}
+
+async function enablePushNotifications() {
+  if (!state.pushSupported) return;
+  setNotificationButton("Включаем...", true);
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") {
+    await refreshNotificationButton();
+    return;
+  }
+
+  const registration = await getServiceWorkerRegistration();
+  const { publicKey } = await api("/chat-api/push/public-key");
+  const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey)
+  });
+
+  await api("/chat-api/push/subscriptions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(subscription)
+  });
+  await refreshNotificationButton();
+}
+
+async function disablePushNotifications() {
+  setNotificationButton("Отключаем...", true);
+  const subscription = await getCurrentPushSubscription();
+  if (subscription) {
+    await api("/chat-api/push/subscriptions", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: subscription.endpoint })
+    });
+    await subscription.unsubscribe();
+  }
+  await refreshNotificationButton();
 }
 
 function setStatus(message, isError = false) {
@@ -156,6 +252,7 @@ function renderSelf() {
     dom.authPanel.classList.remove("is-hidden");
     dom.channelPanel.classList.add("is-hidden");
     dom.adminLink?.classList.add("is-hidden");
+    dom.notificationButton?.classList.add("is-hidden");
     return;
   }
 
@@ -171,6 +268,7 @@ function renderSelf() {
   if (dom.adminLink) {
     dom.adminLink.classList.toggle("is-hidden", !state.me.isAdmin);
   }
+  void refreshNotificationButton().catch((error) => console.error(error));
 }
 
 function renderChannels() {
@@ -477,7 +575,9 @@ async function bootstrap() {
     renderChannels();
     connectSocket();
 
-    const preferred = state.channels.find((channel) => channel.kind === "personal" && channel.ownerUserId === state.me.id) || state.channels[0];
+    const requestedChannelId = Number(new URLSearchParams(window.location.search).get("channel"));
+    const requested = state.channels.find((channel) => channel.id === requestedChannelId);
+    const preferred = requested || state.channels.find((channel) => channel.kind === "personal" && channel.ownerUserId === state.me.id) || state.channels[0];
     if (preferred) {
       await selectChannel(preferred.id);
     }
@@ -498,6 +598,9 @@ async function selectChannel(channelId) {
   state.currentChannel = channelData.channel;
   state.members = channelData.users;
   state.messages = messagesData.messages;
+  const url = new URL(window.location.href);
+  url.searchParams.set("channel", String(channelId));
+  history.replaceState(null, "", url);
 
   renderChannels();
   renderChannelHeader(state.currentChannel);
@@ -794,6 +897,19 @@ dom.channelDeleteButton?.addEventListener("click", async () => {
 
 dom.editProfileButton.addEventListener("click", () => {
   dom.editProfileDialog.showModal();
+});
+
+dom.notificationButton?.addEventListener("click", async () => {
+  try {
+    if (state.pushSubscribed) {
+      await disablePushNotifications();
+      return;
+    }
+    await enablePushNotifications();
+  } catch (error) {
+    alert(error.message);
+    await refreshNotificationButton();
+  }
 });
 
 dom.editProfileForm.addEventListener("submit", async (event) => {
