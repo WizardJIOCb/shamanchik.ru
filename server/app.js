@@ -46,6 +46,14 @@ const GRAIN_MYCELIUM_PRICE_OPTIONS = [
   { unit: "500 г", price: 3500 },
   { unit: "1000 г", price: 6000 }
 ];
+const DEFAULT_CATEGORY_BANNERS = [
+  { title: "Сома", category: "Сома", imageUrl: "/images/banner1.jpg", altText: "Баннер категории Сома", sortOrder: 20 },
+  { title: "Плодовые тела", category: "Плодовые тела", imageUrl: "/images/5292189051106566349.jpg", altText: "Баннер категории Плодовые тела", sortOrder: 30 },
+  { title: "Грибные мази", category: "Мази", imageUrl: "/images/5292189051106566348.jpg", altText: "Баннер категории Мази", sortOrder: 40 },
+  { title: "Сыродавленные масла", category: "Масла", imageUrl: "/images/5292189051106566347.jpg", altText: "Баннер категории Масла", sortOrder: 50 },
+  { title: "Масла, пасты и мёд", category: "Масла, пасты и мёд", imageUrl: "/images/banner3.jpg", altText: "Баннер медовой продукции", sortOrder: 60 },
+  { title: "Медовая продукция", category: "Медовая продукция", imageUrl: "/images/banner3.jpg", altText: "Баннер медовой продукции", sortOrder: 70 }
+];
 const CDEK_BASE_URL = process.env.CDEK_BASE_URL || "https://api.cdek.ru/v2";
 const CDEK_ACCOUNT = process.env.CDEK_ACCOUNT || process.env.CDEK_CLIENT_ID || "";
 const CDEK_SECURE_PASSWORD = process.env.CDEK_SECURE_PASSWORD || process.env.CDEK_CLIENT_SECRET || "";
@@ -346,6 +354,19 @@ db.exec(`
     updated_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS category_banners (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT '',
+    category_key TEXT NOT NULL UNIQUE,
+    image_url TEXT NOT NULL DEFAULT '',
+    alt_text TEXT NOT NULL DEFAULT '',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -484,6 +505,9 @@ function requireAdminPage(req, res, pagePath) {
 
 app.get(["/admin/products", "/admin/products/"], (req, res) => {
   return requireAdminPage(req, res, path.join("admin", "products", "index.html"));
+});
+app.get(["/admin/banners", "/admin/banners/"], (req, res) => {
+  return requireAdminPage(req, res, path.join("admin", "banners", "index.html"));
 });
 app.get(["/admin/articles", "/admin/articles/"], (req, res) => {
   return requireAdminPage(req, res, path.join("admin", "articles", "index.html"));
@@ -741,6 +765,82 @@ function listProducts({ includeInactive = false } = {}) {
     ${where}
     ORDER BY sort_order ASC, id ASC
   `).all().map((row) => normalizeProduct(row, { admin: includeInactive }));
+}
+
+function categoryBannerKey(value) {
+  return cleanText(value, 160).toLocaleLowerCase("ru-RU");
+}
+
+function normalizeCategoryBanner(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    categoryKey: row.category_key,
+    imageUrl: row.image_url,
+    altText: row.alt_text,
+    isActive: Boolean(row.is_active),
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function listCategoryBanners({ includeInactive = false } = {}) {
+  const where = includeInactive ? "" : "WHERE is_active = 1";
+  return db.prepare(`
+    SELECT *
+    FROM category_banners
+    ${where}
+    ORDER BY sort_order ASC, id ASC
+  `).all().map(normalizeCategoryBanner);
+}
+
+function getCategoryBanner(bannerId) {
+  return normalizeCategoryBanner(db.prepare("SELECT * FROM category_banners WHERE id = ?").get(Number(bannerId)));
+}
+
+function getCategoryBannerByKey(categoryKey) {
+  return normalizeCategoryBanner(db.prepare("SELECT * FROM category_banners WHERE category_key = ?").get(categoryKey));
+}
+
+function categoryBannerPayloadFromBody(body, existing = {}) {
+  const category = cleanText(body.category, 160) || existing.category || "";
+  const title = cleanText(body.title, 160) || existing.title || category;
+  const categoryKey = categoryBannerKey(category);
+  return {
+    title,
+    category,
+    categoryKey,
+    imageUrl: cleanText(body.imageUrl ?? body.image_url, 500) || existing.imageUrl || "",
+    altText: cleanText(body.altText ?? body.alt_text, 240) || existing.altText || title,
+    isActive: body.isActive === false || body.isActive === "false" || body.is_active === 0 || body.is_active === "0" ? 0 : 1,
+    sortOrder: cleanInteger(body.sortOrder ?? body.sort_order, existing.sortOrder || 0)
+  };
+}
+
+function ensureDefaultCategoryBanners() {
+  const insert = db.prepare(`
+    INSERT INTO category_banners(
+      title, category, category_key, image_url, alt_text, is_active, sort_order, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(category_key) DO NOTHING
+  `);
+  const stamp = nowIso();
+  for (const banner of DEFAULT_CATEGORY_BANNERS) {
+    insert.run(
+      banner.title,
+      banner.category,
+      categoryBannerKey(banner.category),
+      banner.imageUrl,
+      banner.altText,
+      1,
+      banner.sortOrder,
+      stamp,
+      stamp
+    );
+  }
 }
 
 
@@ -2303,6 +2403,10 @@ app.get(["/api/products/:slug", "/chat-api/products/:slug"], (req, res) => {
   res.json({ product });
 });
 
+app.get(["/api/banners", "/chat-api/banners"], (_req, res) => {
+  res.json({ banners: listCategoryBanners() });
+});
+
 
 app.get(["/api/store/settings", "/chat-api/store/settings"], (_req, res) => {
   res.json(storeSettingsPayload());
@@ -2523,6 +2627,10 @@ app.get(["/api/admin/products", "/chat-api/admin/products"], requireAdmin, (_req
   res.json({ products: listProducts({ includeInactive: true }) });
 });
 
+app.get(["/api/admin/banners", "/chat-api/admin/banners"], requireAdmin, (_req, res) => {
+  res.json({ banners: listCategoryBanners({ includeInactive: true }) });
+});
+
 
 app.get(["/api/admin/store-settings", "/chat-api/admin/store-settings"], requireAdmin, (_req, res) => {
   res.json({ settings: storeSettingsPayload({ admin: true }) });
@@ -2625,6 +2733,94 @@ app.delete(["/api/admin/promocodes/:promoCodeId", "/chat-api/admin/promocodes/:p
   }
   db.prepare("DELETE FROM promo_codes WHERE id = ?").run(promoCodeId);
   res.json({ ok: true, promoCodeId });
+});
+
+app.post(["/api/admin/banners", "/chat-api/admin/banners"], requireAdmin, (req, res) => {
+  const payload = categoryBannerPayloadFromBody(req.body);
+  if (!payload.category) {
+    return res.status(400).json({ error: "Категория обязательна." });
+  }
+  if (getCategoryBannerByKey(payload.categoryKey)) {
+    return res.status(400).json({ error: "Баннер для этой категории уже существует." });
+  }
+  const stamp = nowIso();
+  const result = db.prepare(`
+    INSERT INTO category_banners(
+      title, category, category_key, image_url, alt_text, is_active, sort_order, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    payload.title,
+    payload.category,
+    payload.categoryKey,
+    payload.imageUrl,
+    payload.altText,
+    payload.isActive,
+    payload.sortOrder,
+    stamp,
+    stamp
+  );
+  res.status(201).json({ banner: getCategoryBanner(Number(result.lastInsertRowid)) });
+});
+
+app.patch(["/api/admin/banners/:bannerId", "/chat-api/admin/banners/:bannerId"], requireAdmin, (req, res) => {
+  const bannerId = Number(req.params.bannerId);
+  const existing = getCategoryBanner(bannerId);
+  if (!existing) {
+    return res.status(404).json({ error: "Баннер не найден." });
+  }
+  const payload = categoryBannerPayloadFromBody(req.body, existing);
+  if (!payload.category) {
+    return res.status(400).json({ error: "Категория обязательна." });
+  }
+  const duplicate = getCategoryBannerByKey(payload.categoryKey);
+  if (duplicate && Number(duplicate.id) !== bannerId) {
+    return res.status(400).json({ error: "Баннер для этой категории уже существует." });
+  }
+  db.prepare(`
+    UPDATE category_banners
+    SET title = ?, category = ?, category_key = ?, image_url = ?, alt_text = ?,
+        is_active = ?, sort_order = ?, updated_at = ?
+    WHERE id = ?
+  `).run(
+    payload.title,
+    payload.category,
+    payload.categoryKey,
+    payload.imageUrl,
+    payload.altText,
+    payload.isActive,
+    payload.sortOrder,
+    nowIso(),
+    bannerId
+  );
+  res.json({ banner: getCategoryBanner(bannerId) });
+});
+
+app.delete(["/api/admin/banners/:bannerId", "/chat-api/admin/banners/:bannerId"], requireAdmin, (req, res) => {
+  const bannerId = Number(req.params.bannerId);
+  const existing = getCategoryBanner(bannerId);
+  if (!existing) {
+    return res.status(404).json({ error: "Баннер не найден." });
+  }
+  db.prepare("DELETE FROM category_banners WHERE id = ?").run(bannerId);
+  res.json({ ok: true, bannerId });
+});
+
+app.post(["/api/admin/banners/:bannerId/image", "/chat-api/admin/banners/:bannerId/image"], requireAdmin, productImageUpload.single("image"), (req, res) => {
+  const bannerId = Number(req.params.bannerId);
+  const existing = getCategoryBanner(bannerId);
+  if (!existing) {
+    if (req.file?.path) {
+      fs.unlink(req.file.path, () => {});
+    }
+    return res.status(404).json({ error: "Баннер не найден." });
+  }
+  if (!req.file) {
+    return res.status(400).json({ error: "Изображение обязательно." });
+  }
+
+  const imageUrl = `/product-images/${path.basename(req.file.path)}`;
+  db.prepare("UPDATE category_banners SET image_url = ?, updated_at = ? WHERE id = ?").run(imageUrl, nowIso(), bannerId);
+  res.json({ banner: getCategoryBanner(bannerId) });
 });
 
 app.post(["/api/admin/products", "/chat-api/admin/products"], requireAdmin, (req, res) => {
@@ -3271,6 +3467,7 @@ ensureStoreSettings();
 ensureDefaultProducts();
 ensureGrainMyceliumPrices();
 ensureCuratedCatalogProducts();
+ensureDefaultCategoryBanners();
 
 server.listen(PORT, () => {
   console.log(`Shamanchik chat server listening on ${PORT}`);

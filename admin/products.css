@@ -205,6 +205,10 @@ h2 {
   background: var(--image) center / cover no-repeat, rgba(8, 10, 8, 0.86);
 }
 
+.product-list__image--wide {
+  background-size: cover;
+}
+
 .product-list__item strong {
   display: block;
   margin: 3px 0 5px;
@@ -294,6 +298,11 @@ select:focus {
   border: 1px solid rgba(240, 193, 119, 0.24);
   border-radius: 8px;
   background: var(--image) center / cover no-repeat, rgba(7, 10, 8, 0.86);
+}
+
+.image-preview--banner {
+  flex-basis: 360px;
+  aspect-ratio: 16 / 7;
 }
 
 .media-fields {

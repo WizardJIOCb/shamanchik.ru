@@ -11,7 +11,8 @@
     cart: loadCart(),
     settings: { deliveryEnabled: true, paymentEnabled: true, cdekSearchReady: false, cdekReady: false, yookassaReady: false },
     checkout: { city: null, points: [], selectedPoint: null, delivery: null },
-    promo: { code: "", applied: null, discountAmount: 0, message: "", isError: false }
+    promo: { code: "", applied: null, discountAmount: 0, message: "", isError: false },
+    categoryBanners: new Map()
   };
 
   const modalEls = {
@@ -419,10 +420,11 @@
       "масла, пасты и мёд": { title: "Масла, пасты и мёд", banner: "" },
       "медовая продукция": { title: "Медовая продукция", banner: "" }
     };
+    const banner = state.categoryBanners.get(key);
     return {
       key,
-      title: known[key]?.title || String(category || "Каталог"),
-      banner: known[key]?.banner || ""
+      title: banner?.title || known[key]?.title || String(category || "Каталог"),
+      banner: banner?.imageUrl || known[key]?.banner || ""
     };
   }
 
@@ -880,10 +882,12 @@
     fetch("/chat-api/products", { credentials: "same-origin" }).then((response) => {
       if (!response.ok) throw new Error("Catalog unavailable");
       return response.json();
-    })
+    }),
+    fetch("/chat-api/banners", { credentials: "same-origin" }).then((response) => response.ok ? response.json() : { banners: [] })
   ])
-    .then(([settings, data]) => {
+    .then(([settings, data, bannersData]) => {
       state.settings = { ...state.settings, ...settings };
+      state.categoryBanners = new Map((bannersData.banners || []).map((banner) => [categoryKey(banner.category), banner]));
       if (!state.settings.cdekSearchReady) cartEls.deliveryNote.textContent = "CDEK появится после настройки ключей.";
       if (state.settings.cdekSearchReady && !state.settings.cdekReady) cartEls.deliveryNote.textContent = "Укажите город отправления CDEK в админке.";
       renderProducts(data.products || []);
