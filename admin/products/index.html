@@ -62,6 +62,18 @@
             <span>Код тарифа CDEK</span>
             <input name="cdekTariffCode" type="number" min="1" step="1" placeholder="136">
           </label>
+          <label>
+            <span>Длина коробки CDEK, см</span>
+            <input name="cdekPackageLength" type="number" min="1" max="200" step="1" placeholder="20">
+          </label>
+          <label>
+            <span>Ширина коробки CDEK, см</span>
+            <input name="cdekPackageWidth" type="number" min="1" max="200" step="1" placeholder="15">
+          </label>
+          <label>
+            <span>Высота коробки CDEK, см</span>
+            <input name="cdekPackageHeight" type="number" min="1" max="200" step="1" placeholder="10">
+          </label>
           <div class="settings-flags" aria-live="polite">
             <span id="cdek-credentials-state">CDEK: проверяем</span>
             <span id="yookassa-credentials-state">ЮКасса: проверяем</span>
@@ -195,6 +207,6 @@
 
   <noscript><div><img src="https://mc.yandex.ru/watch/108620522" style="position:absolute; left:-9999px;" alt=""></div></noscript>
   <script src="/yandex-metrika.js" defer></script>
-  <script src="/admin/products.js" defer></script>
+  <script src="/admin/products.js?v=cdek-package-20260630" defer></script>
 </body>
 </html>

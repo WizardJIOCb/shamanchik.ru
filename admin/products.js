@@ -40,6 +40,9 @@ function fillStoreSettings(settings) {
   form.cdekFromLocationCode.value = settings.cdekFromLocationCode || "";
   form.cdekSenderPointCode.value = settings.cdekSenderPointCode || "";
   form.cdekTariffCode.value = settings.cdekTariffCode || 136;
+  form.cdekPackageLength.value = settings.cdekPackageLength || 20;
+  form.cdekPackageWidth.value = settings.cdekPackageWidth || 15;
+  form.cdekPackageHeight.value = settings.cdekPackageHeight || 10;
   renderCredentialFlag(els.cdekCredentialsState, "CDEK", settings.hasCdekCredentials);
   renderCredentialFlag(els.yookassaCredentialsState, "ЮКасса", settings.hasYookassaCredentials);
   if (els.settingsStatus) {
@@ -54,7 +57,10 @@ function storeSettingsPayload() {
     paymentEnabled: form.paymentEnabled.checked,
     cdekFromLocationCode: form.cdekFromLocationCode.value,
     cdekSenderPointCode: form.cdekSenderPointCode.value,
-    cdekTariffCode: Number(form.cdekTariffCode.value || 136)
+    cdekTariffCode: Number(form.cdekTariffCode.value || 136),
+    cdekPackageLength: Number(form.cdekPackageLength.value || 20),
+    cdekPackageWidth: Number(form.cdekPackageWidth.value || 15),
+    cdekPackageHeight: Number(form.cdekPackageHeight.value || 10)
   };
 }
 

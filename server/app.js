@@ -451,6 +451,9 @@ function ensureStoreSettings() {
     ["cdek_from_location_code", process.env.CDEK_FROM_LOCATION_CODE || ""],
     ["cdek_sender_point_code", CDEK_SENDER_POINT_CODE],
     ["cdek_tariff_code", String(process.env.CDEK_TARIFF_CODE || DEFAULT_CDEK_TARIFF_CODE)],
+    ["cdek_package_length", String(DEFAULT_PACKAGE.length)],
+    ["cdek_package_width", String(DEFAULT_PACKAGE.width)],
+    ["cdek_package_height", String(DEFAULT_PACKAGE.height)],
     ["payment_enabled", "1"]
   ]);
   const insert = db.prepare("INSERT OR IGNORE INTO site_settings(key, value, updated_at) VALUES (?, ?, ?)");
@@ -860,6 +863,7 @@ function storeSettingsPayload({ admin = false } = {}) {
   const cdekFromLocationCode = getSetting("cdek_from_location_code", "") || process.env.CDEK_FROM_LOCATION_CODE || "";
   const cdekSenderPointCode = getSetting("cdek_sender_point_code", "") || CDEK_SENDER_POINT_CODE;
   const cdekTariffCode = cleanInteger(getSetting("cdek_tariff_code", "") || process.env.CDEK_TARIFF_CODE || DEFAULT_CDEK_TARIFF_CODE, DEFAULT_CDEK_TARIFF_CODE);
+  const cdekPackage = cdekPackageSettings();
   const payload = {
     deliveryEnabled,
     paymentEnabled,
@@ -871,6 +875,9 @@ function storeSettingsPayload({ admin = false } = {}) {
   if (admin) {
     payload.cdekFromLocationCode = cdekFromLocationCode;
     payload.cdekSenderPointCode = cdekSenderPointCode;
+    payload.cdekPackageLength = cdekPackage.length;
+    payload.cdekPackageWidth = cdekPackage.width;
+    payload.cdekPackageHeight = cdekPackage.height;
     payload.hasCdekCredentials = Boolean(CDEK_ACCOUNT && CDEK_SECURE_PASSWORD);
     payload.hasYookassaCredentials = Boolean(YOOKASSA_SHOP_ID && YOOKASSA_SECRET_KEY);
   }
@@ -1383,6 +1390,18 @@ function orderTotals(items, deliveryPrice = 0, discountAmount = 0) {
   return { subtotal, discountAmount: discount, deliveryPrice: delivery, total: subtotal - discount + delivery };
 }
 
+function cleanPackageDimension(value, fallback) {
+  return Math.min(200, Math.max(1, cleanInteger(value, fallback)));
+}
+
+function cdekPackageSettings() {
+  return {
+    length: cleanPackageDimension(getSetting("cdek_package_length", DEFAULT_PACKAGE.length), DEFAULT_PACKAGE.length),
+    width: cleanPackageDimension(getSetting("cdek_package_width", DEFAULT_PACKAGE.width), DEFAULT_PACKAGE.width),
+    height: cleanPackageDimension(getSetting("cdek_package_height", DEFAULT_PACKAGE.height), DEFAULT_PACKAGE.height)
+  };
+}
+
 function cdekConfigured() {
   return Boolean(CDEK_ACCOUNT && CDEK_SECURE_PASSWORD);
 }
@@ -1439,7 +1458,7 @@ async function cdekFetch(endpoint, options = {}) {
 function orderPackageFromItems(items) {
   return {
     weight: Math.max(100, items.reduce((sum, item) => sum + item.weight, 0)),
-    ...DEFAULT_PACKAGE
+    ...cdekPackageSettings()
   };
 }
 
@@ -1454,12 +1473,18 @@ async function calculateCdekDelivery({ cityCode, deliveryPointCode, items }) {
   if (!toLocationCode) {
     throw new Error("Choose delivery city.");
   }
+  const deliveryPointCodeClean = cleanText(deliveryPointCode, 80);
   const payload = {
+    type: 1,
     tariff_code: tariffCode,
     from_location: { code: fromLocationCode },
     to_location: { code: toLocationCode },
     packages: [orderPackageFromItems(items)]
   };
+  if (senderPointCode && deliveryPointCodeClean) {
+    payload.shipment_point = senderPointCode;
+    payload.delivery_point = deliveryPointCodeClean;
+  }
   const result = await cdekFetch("/calculator/tariff", {
     method: "POST",
     body: JSON.stringify(payload)
@@ -1467,9 +1492,11 @@ async function calculateCdekDelivery({ cityCode, deliveryPointCode, items }) {
   return {
     provider: "cdek",
     tariffCode,
+    shipmentPointCode: senderPointCode || null,
     senderPointCode,
     cityCode: toLocationCode,
-    deliveryPointCode: cleanText(deliveryPointCode, 80),
+    deliveryPointCode: deliveryPointCodeClean,
+    package: payload.packages[0],
     price: Math.ceil(cleanNumber(result.total_sum ?? result.delivery_sum, 0)),
     periodMin: result.period_min || null,
     periodMax: result.period_max || null,
@@ -2642,6 +2669,9 @@ app.patch(["/api/admin/store-settings", "/chat-api/admin/store-settings"], requi
   setSetting("cdek_from_location_code", cleanText(req.body.cdekFromLocationCode, 40));
   setSetting("cdek_sender_point_code", cleanText(req.body.cdekSenderPointCode, 80));
   setSetting("cdek_tariff_code", String(cleanInteger(req.body.cdekTariffCode, DEFAULT_CDEK_TARIFF_CODE)));
+  setSetting("cdek_package_length", String(cleanPackageDimension(req.body.cdekPackageLength, DEFAULT_PACKAGE.length)));
+  setSetting("cdek_package_width", String(cleanPackageDimension(req.body.cdekPackageWidth, DEFAULT_PACKAGE.width)));
+  setSetting("cdek_package_height", String(cleanPackageDimension(req.body.cdekPackageHeight, DEFAULT_PACKAGE.height)));
   res.json({ settings: storeSettingsPayload({ admin: true }) });
 });
 
