@@ -9,7 +9,7 @@
   const whatsappPhone = "79871355371";
   const state = {
     cart: loadCart(),
-    settings: { deliveryEnabled: true, paymentEnabled: true, cdekSearchReady: false, cdekReady: false, yookassaReady: false },
+    settings: { deliveryEnabled: false, paymentEnabled: true, cdekSearchReady: false, cdekReady: false, yookassaReady: false },
     checkout: { city: null, points: [], selectedPoint: null, delivery: null },
     promo: { code: "", applied: null, discountAmount: 0, message: "", isError: false },
     categoryBanners: new Map()
@@ -50,6 +50,10 @@
 
   function canUseCheckoutPayment() {
     return Boolean(state.settings.paymentEnabled && state.settings.yookassaReady);
+  }
+
+  function canUseDelivery() {
+    return Boolean(state.settings.deliveryEnabled && state.settings.cdekReady);
   }
 
   function canCheckoutProduct(product, unit = "") {
@@ -175,7 +179,7 @@
 
   function cartTotals() {
     const subtotal = state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const deliveryPrice = state.checkout.delivery?.price || 0;
+    const deliveryPrice = canUseDelivery() ? state.checkout.delivery?.price || 0 : 0;
     const discountAmount = Math.min(subtotal, Math.max(0, Number(state.promo.discountAmount || 0)));
     return { subtotal, discountAmount, deliveryPrice, total: subtotal - discountAmount + deliveryPrice };
   }
@@ -274,6 +278,14 @@
     return Number(item.price || 0) > 0;
   }
 
+  function cartPayload() {
+    return state.cart.map((item) => ({
+      slug: item.slug,
+      unit: item.unit,
+      quantity: item.quantity
+    }));
+  }
+
   function addToCart(slug, unit) {
     const product = products.get(slug);
     if (!product) return;
@@ -344,7 +356,7 @@
                 </div>
                 <p class="checkout-note checkout-note--promo" data-promo-note>Введите промокод, чтобы пересчитать итог заказа.</p>
               </section>
-              <section class="checkout-delivery" data-delivery-section>
+              <section class="checkout-delivery" data-delivery-section hidden>
                 <h3>Доставка CDEK</h3>
                 <label><span>Город</span><input name="city" type="text" autocomplete="off" placeholder="Начните вводить город"></label>
                 <div class="checkout-options" data-city-options></div>
@@ -610,7 +622,7 @@
         <strong class="cart-item__sum">${money(item.price * item.quantity)}</strong>
         <button class="cart-item__remove" type="button" data-cart-remove="${escapeHtml(item.key)}" aria-label="Убрать товар">×</button>
       </article>`).join("");
-    cartEls.deliverySection.hidden = !(state.settings.deliveryEnabled && state.settings.cdekReady);
+    cartEls.deliverySection.hidden = !canUseDelivery();
     const submit = cartEls.form.querySelector(".checkout-submit");
     const paymentReady = canUseCheckoutPayment();
     submit.disabled = !paymentReady;
@@ -625,7 +637,11 @@
     const promoLine = totals.discountAmount > 0
       ? `<div><span>Промокод ${escapeHtml(state.promo.applied?.code || state.promo.code || "")}</span><strong>−${money(totals.discountAmount)}</strong></div>`
       : "";
-    const deliveryLine = state.settings.deliveryEnabled && state.settings.cdekReady
+    if (!state.settings.deliveryEnabled) {
+      cartEls.summary.innerHTML = `<div><span>Товары</span><strong>${money(totals.subtotal)}</strong></div>${promoLine}<div class="cart-summary__total"><span>Итого</span><strong>${money(totals.total)}</strong></div>`;
+      return;
+    }
+    const deliveryLine = canUseDelivery()
       ? `<span>Доставка CDEK</span><strong>${state.checkout.delivery ? money(totals.deliveryPrice) : "нужно выбрать ПВЗ"}</strong>`
       : `<span>Доставка</span><strong>${state.settings.deliveryEnabled ? "требует настройки" : "отключена"}</strong>`;
     cartEls.summary.innerHTML = `<div><span>Товары</span><strong>${money(totals.subtotal)}</strong></div>${promoLine}<div>${deliveryLine}</div><div class="cart-summary__total"><span>Итого</span><strong>${money(totals.total)}</strong></div>`;
@@ -715,12 +731,12 @@
     event.preventDefault();
     showCheckoutError("");
     if (!state.cart.length) return;
-    if (state.settings.deliveryEnabled && state.settings.cdekReady && (!state.checkout.city || !state.checkout.selectedPoint || !state.checkout.delivery)) {
+    if (canUseDelivery() && (!state.checkout.city || !state.checkout.selectedPoint || !state.checkout.delivery)) {
       showCheckoutError("Выберите город и пункт выдачи CDEK.");
       return;
     }
     const form = new FormData(cartEls.form);
-    const delivery = state.settings.deliveryEnabled && state.settings.cdekReady ? {
+    const delivery = canUseDelivery() ? {
       cityCode: state.checkout.city.code,
       cityName: state.checkout.city.name,
       deliveryPointCode: state.checkout.selectedPoint.code,
