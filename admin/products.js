@@ -1,6 +1,7 @@
 const state = {
   products: [],
-  selectedId: null
+  selectedId: null,
+  deliveryTest: { city: null, points: [] }
 };
 
 const els = {
@@ -17,7 +18,13 @@ const els = {
   settingsStatus: document.querySelector("#store-settings-status"),
   saveSettingsButton: document.querySelector("#save-store-settings"),
   cdekCredentialsState: document.querySelector("#cdek-credentials-state"),
-  yookassaCredentialsState: document.querySelector("#yookassa-credentials-state")
+  yookassaCredentialsState: document.querySelector("#yookassa-credentials-state"),
+  deliveryTestQuery: document.querySelector("#delivery-test-query"),
+  deliveryTestCities: document.querySelector("#delivery-test-cities"),
+  deliveryTestPoint: document.querySelector("#delivery-test-point"),
+  deliveryTestWeight: document.querySelector("#delivery-test-weight"),
+  calculateDeliveryButton: document.querySelector("#calculate-delivery"),
+  deliveryTestResult: document.querySelector("#delivery-test-result")
 };
 
 
@@ -83,6 +90,77 @@ async function saveStoreSettings() {
     fillStoreSettings(data.settings);
   }
   showStatus("Настройки оформления сохранены.");
+}
+
+function setDeliveryTestResult(message, isError = false) {
+  if (!els.deliveryTestResult) return;
+  els.deliveryTestResult.innerHTML = message;
+  els.deliveryTestResult.classList.toggle("is-error", Boolean(isError));
+}
+
+function renderDeliveryTestCities(cities) {
+  if (!els.deliveryTestCities) return;
+  els.deliveryTestCities.innerHTML = cities.map((city) => {
+    const selected = String(state.deliveryTest.city?.code || "") === String(city.code);
+    return `<button type="button" class="${selected ? "is-selected" : ""}" data-delivery-city-code="${escapeHtml(city.code)}" data-delivery-city-name="${escapeHtml(city.name)}" data-delivery-city-region="${escapeHtml(city.region || "")}">${escapeHtml(city.name)}${city.region ? `, ${escapeHtml(city.region)}` : ""}</button>`;
+  }).join("");
+}
+
+function renderDeliveryTestPoints(points) {
+  if (!els.deliveryTestPoint) return;
+  state.deliveryTest.points = points;
+  els.deliveryTestPoint.disabled = !points.length;
+  els.deliveryTestPoint.innerHTML = points.length
+    ? '<option value="">Выберите ПВЗ</option>' + points.map((point) => `<option value="${escapeHtml(point.code)}">${escapeHtml(point.name)} · ${escapeHtml(point.address)}</option>`).join("")
+    : '<option value="">ПВЗ не найдены</option>';
+}
+
+async function searchDeliveryTestCities() {
+  const query = els.deliveryTestQuery?.value.trim() || "";
+  state.deliveryTest.city = null;
+  renderDeliveryTestPoints([]);
+  if (query.length < 2) {
+    renderDeliveryTestCities([]);
+    setDeliveryTestResult("Введите город или адрес, затем выберите ПВЗ.");
+    return;
+  }
+  setDeliveryTestResult("Ищем города CDEK...");
+  const data = await fetchJson(`/chat-api/delivery/cities?q=${encodeURIComponent(query)}`);
+  const cities = data.cities || [];
+  renderDeliveryTestCities(cities);
+  setDeliveryTestResult(cities.length ? "Выберите город из найденных вариантов." : "Города не найдены.", !cities.length);
+}
+
+async function selectDeliveryTestCity(city) {
+  state.deliveryTest.city = city;
+  if (els.deliveryTestQuery) {
+    els.deliveryTestQuery.value = city.region ? `${city.name}, ${city.region}` : city.name;
+  }
+  renderDeliveryTestCities([city]);
+  setDeliveryTestResult("Загружаем ПВЗ CDEK...");
+  const data = await fetchJson(`/chat-api/delivery/points?cityCode=${encodeURIComponent(city.code)}`);
+  const points = data.points || [];
+  renderDeliveryTestPoints(points);
+  setDeliveryTestResult(points.length ? "Выберите ПВЗ и нажмите расчет." : "В этом городе ПВЗ не найдены.", !points.length);
+}
+
+async function calculateDeliveryTest() {
+  const city = state.deliveryTest.city;
+  const point = state.deliveryTest.points.find((item) => item.code === els.deliveryTestPoint?.value);
+  const weightGrams = Math.max(1, Number(els.deliveryTestWeight?.value || 100));
+  if (!city || !point) {
+    setDeliveryTestResult("Выберите город и ПВЗ CDEK.", true);
+    return;
+  }
+  setDeliveryTestResult("Считаем доставку CDEK...");
+  const data = await fetchJson("/chat-api/admin/delivery/calculate", {
+    method: "POST",
+    body: JSON.stringify({ cityCode: city.code, deliveryPointCode: point.code, weightGrams })
+  });
+  const delivery = data.delivery || {};
+  const pkg = delivery.package || {};
+  const period = delivery.periodMin ? `${delivery.periodMin}-${delivery.periodMax || delivery.periodMin} дн.` : "срок не указан";
+  setDeliveryTestResult(`<strong>${Number(delivery.price || 0).toLocaleString("ru-RU")} ₽</strong> · ${period}<br>ПВЗ отправления: ${escapeHtml(delivery.shipmentPointCode || "не указан")} · ПВЗ получения: ${escapeHtml(delivery.deliveryPointCode || point.code)}<br>Тариф: ${escapeHtml(delivery.tariffCode || "")} · Вес: ${escapeHtml(pkg.weight || weightGrams)} г · Габариты: ${escapeHtml(pkg.length || "")}×${escapeHtml(pkg.width || "")}×${escapeHtml(pkg.height || "")} см`);
 }
 
 function showStatus(message, isError = false) {
@@ -331,6 +409,41 @@ if (els.saveSettingsButton) {
       showStatus(error.message, true);
     } finally {
       els.saveSettingsButton.disabled = false;
+    }
+  });
+}
+
+let deliverySearchTimer = null;
+if (els.deliveryTestQuery) {
+  els.deliveryTestQuery.addEventListener("input", () => {
+    window.clearTimeout(deliverySearchTimer);
+    deliverySearchTimer = window.setTimeout(() => {
+      searchDeliveryTestCities().catch((error) => setDeliveryTestResult(error.message, true));
+    }, 360);
+  });
+}
+
+if (els.deliveryTestCities) {
+  els.deliveryTestCities.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-delivery-city-code]");
+    if (!button) return;
+    selectDeliveryTestCity({
+      code: button.dataset.deliveryCityCode,
+      name: button.dataset.deliveryCityName,
+      region: button.dataset.deliveryCityRegion
+    }).catch((error) => setDeliveryTestResult(error.message, true));
+  });
+}
+
+if (els.calculateDeliveryButton) {
+  els.calculateDeliveryButton.addEventListener("click", async () => {
+    try {
+      els.calculateDeliveryButton.disabled = true;
+      await calculateDeliveryTest();
+    } catch (error) {
+      setDeliveryTestResult(error.message, true);
+    } finally {
+      els.calculateDeliveryButton.disabled = false;
     }
   });
 }

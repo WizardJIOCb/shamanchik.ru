@@ -80,6 +80,33 @@
           </div>
         </div>
       </form>
+      <section class="delivery-calculator" aria-labelledby="delivery-calculator-title">
+        <div class="panel-subhead">
+          <div>
+            <p class="eyebrow">CDEK</p>
+            <h3 id="delivery-calculator-title">Тестовый расчет доставки</h3>
+          </div>
+          <button class="button" type="button" id="calculate-delivery">Рассчитать</button>
+        </div>
+        <div class="form-grid form-grid--thirds">
+          <label>
+            <span>Город или адрес получателя</span>
+            <input id="delivery-test-query" type="text" autocomplete="off" placeholder="Например Москва, Тверская">
+          </label>
+          <label>
+            <span>Пункт выдачи получателя</span>
+            <select id="delivery-test-point" disabled>
+              <option value="">Сначала выберите город</option>
+            </select>
+          </label>
+          <label>
+            <span>Тестовый вес, г</span>
+            <input id="delivery-test-weight" type="number" min="1" step="1" value="100">
+          </label>
+        </div>
+        <div class="delivery-calculator__cities" id="delivery-test-cities" aria-live="polite"></div>
+        <div class="delivery-calculator__result" id="delivery-test-result" aria-live="polite">Введите город или адрес, затем выберите ПВЗ.</div>
+      </section>
     </section>
 
     <main class="admin-layout">
@@ -207,6 +234,6 @@
 
   <noscript><div><img src="https://mc.yandex.ru/watch/108620522" style="position:absolute; left:-9999px;" alt=""></div></noscript>
   <script src="/yandex-metrika.js" defer></script>
-  <script src="/admin/products.js?v=cdek-package-20260630" defer></script>
+  <script src="/admin/products.js?v=cdek-calculator-20260630" defer></script>
 </body>
 </html>

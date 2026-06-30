@@ -2507,6 +2507,29 @@ app.post(["/api/delivery/calculate", "/chat-api/delivery/calculate"], async (req
   }
 });
 
+app.post(["/api/admin/delivery/calculate", "/chat-api/admin/delivery/calculate"], requireAdmin, async (req, res, next) => {
+  try {
+    const settings = storeSettingsPayload({ admin: true });
+    if (!settings.cdekReady) {
+      return res.status(503).json({ error: "CDEK is not configured." });
+    }
+    const cityCode = cleanInteger(req.body.cityCode, 0);
+    const deliveryPointCode = cleanText(req.body.deliveryPointCode, 80);
+    const weight = Math.max(1, cleanInteger(req.body.weightGrams, 100));
+    if (!cityCode || !deliveryPointCode) {
+      return res.status(400).json({ error: "Выберите город и ПВЗ CDEK." });
+    }
+    const delivery = await calculateCdekDelivery({
+      cityCode,
+      deliveryPointCode,
+      items: [{ weight }]
+    });
+    res.json({ delivery, settings });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post(["/api/promocodes/preview", "/chat-api/promocodes/preview"], (req, res) => {
   const items = normalizeOrderItems(req.body.items);
   if (!items.length) {
