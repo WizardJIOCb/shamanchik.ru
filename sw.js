@@ -1,4 +1,4 @@
-const CACHE_NAME = "shamanchik-pwa-v3";
+const CACHE_NAME = "shamanchik-pwa-v4";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -52,6 +52,12 @@ function isApiRequest(url) {
     || url.pathname.startsWith("/product-images/");
 }
 
+function shouldPreferNetwork(url) {
+  return url.pathname === "/catalog.js"
+    || url.pathname === "/sw.js"
+    || url.pathname === "/pwa.js";
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -68,6 +74,21 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => caches.match(request).then((cached) => cached || caches.match("/index.html")))
+    );
+    return;
+  }
+
+  if (shouldPreferNetwork(url)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }
