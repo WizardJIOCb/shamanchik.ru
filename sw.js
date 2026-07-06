@@ -1,4 +1,4 @@
-const CACHE_NAME = "shamanchik-pwa-v4";
+const CACHE_NAME = "shamanchik-pwa-v7";
 const APP_SHELL = [
   "/",
   "/index.html",

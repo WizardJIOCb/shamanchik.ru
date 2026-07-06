@@ -24,7 +24,8 @@ const els = {
   deliveryTestPoint: document.querySelector("#delivery-test-point"),
   deliveryTestWeight: document.querySelector("#delivery-test-weight"),
   calculateDeliveryButton: document.querySelector("#calculate-delivery"),
-  deliveryTestResult: document.querySelector("#delivery-test-result")
+  deliveryTestResult: document.querySelector("#delivery-test-result"),
+  deliveryTestDebug: document.querySelector("#delivery-test-debug")
 };
 
 
@@ -96,6 +97,31 @@ function setDeliveryTestResult(message, isError = false) {
   if (!els.deliveryTestResult) return;
   els.deliveryTestResult.innerHTML = message;
   els.deliveryTestResult.classList.toggle("is-error", Boolean(isError));
+  setDeliveryTestDebug(null);
+}
+
+function formatJson(value) {
+  return escapeHtml(JSON.stringify(value || {}, null, 2));
+}
+
+function setDeliveryTestDebug(debug) {
+  if (!els.deliveryTestDebug) return;
+  if (!debug) {
+    els.deliveryTestDebug.hidden = true;
+    els.deliveryTestDebug.innerHTML = "";
+    return;
+  }
+  els.deliveryTestDebug.hidden = false;
+  els.deliveryTestDebug.innerHTML = `
+    <div>
+      <strong>Запрос в CDEK</strong>
+      <pre>${formatJson(debug.request)}</pre>
+    </div>
+    <div>
+      <strong>Ответ CDEK</strong>
+      <pre>${formatJson(debug.response)}</pre>
+    </div>
+  `;
 }
 
 function renderDeliveryTestCities(cities) {
@@ -161,6 +187,7 @@ async function calculateDeliveryTest() {
   const pkg = delivery.package || {};
   const period = delivery.periodMin ? `${delivery.periodMin}-${delivery.periodMax || delivery.periodMin} дн.` : "срок не указан";
   setDeliveryTestResult(`<strong>${Number(delivery.price || 0).toLocaleString("ru-RU")} ₽</strong> · ${period}<br>ПВЗ отправления: ${escapeHtml(delivery.shipmentPointCode || "не указан")} · ПВЗ получения: ${escapeHtml(delivery.deliveryPointCode || point.code)}<br>Тариф: ${escapeHtml(delivery.tariffCode || "")} · Вес: ${escapeHtml(pkg.weight || weightGrams)} г · Габариты: ${escapeHtml(pkg.length || "")}×${escapeHtml(pkg.width || "")}×${escapeHtml(pkg.height || "")} см`);
+  setDeliveryTestDebug(data.cdekDebug || delivery.debug);
 }
 
 function showStatus(message, isError = false) {
@@ -187,7 +214,9 @@ async function fetchJson(url, options = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || "Ошибка запроса.");
+    const error = new Error(data.error || "Ошибка запроса.");
+    error.data = data;
+    throw error;
   }
   return data;
 }
@@ -203,8 +232,15 @@ function formatPrice(product) {
   return product.price > 0 ? `${product.price.toLocaleString("ru-RU")} ₽${discount > 0 ? ` · -${discount}%` : ""}` : "Цена по запросу";
 }
 
+function formatPriceOptionDimensions(option, product) {
+  const length = option.packageLength || product.packageLength || 20;
+  const width = option.packageWidth || product.packageWidth || 15;
+  const height = option.packageHeight || product.packageHeight || 10;
+  return `${length}.${width}.${height}`;
+}
+
 function formatPriceOptionsText(product) {
-  return (product.priceOptions || []).map((option) => `${option.unit} - ${option.price}`).join("\n");
+  return (product.priceOptions || []).map((option) => `${option.unit} - ${option.price} - ${formatPriceOptionDimensions(option, product)}`).join("\n");
 }
 
 function renderList() {
@@ -251,10 +287,10 @@ function emptyProduct() {
     discountPercent: 0,
     unit: "100 г",
     priceOptions: [
-      { unit: "100 г", price: 800 },
-      { unit: "300 г", price: 2200 },
-      { unit: "500 г", price: 3500 },
-      { unit: "1000 г", price: 6000 }
+      { unit: "100 г", price: 800, packageLength: 20, packageWidth: 15, packageHeight: 10 },
+      { unit: "300 г", price: 2200, packageLength: 60, packageWidth: 45, packageHeight: 30 },
+      { unit: "500 г", price: 3500, packageLength: 100, packageWidth: 75, packageHeight: 50 },
+      { unit: "1000 г", price: 6000, packageLength: 200, packageWidth: 150, packageHeight: 100 }
     ],
     isActive: true,
     sortOrder: state.products.length
@@ -442,6 +478,7 @@ if (els.calculateDeliveryButton) {
       await calculateDeliveryTest();
     } catch (error) {
       setDeliveryTestResult(error.message, true);
+      setDeliveryTestDebug(error.data?.cdekDebug || error.data?.delivery?.debug);
     } finally {
       els.calculateDeliveryButton.disabled = false;
     }

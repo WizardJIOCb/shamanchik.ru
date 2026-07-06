@@ -4,6 +4,7 @@
   if (!grid || !modal) return;
 
   const products = new Map();
+  const initialProductMarkup = grid.innerHTML;
   const cartKey = "shamanchik_cart_v1";
   const fallbackImage = "/images/product-reishi.png";
   const whatsappPhone = "79871355371";
@@ -153,6 +154,11 @@
     return product.unit || product.subtitle || "";
   }
 
+  function optionPackageDimension(option, product, key, fallback) {
+    if (option?.[key]) return option[key];
+    return product?.[key] || fallback;
+  }
+
   function priceMarkup(product) {
     const current = formatPrice(product);
     const original = formatOriginalPrice(product);
@@ -279,11 +285,18 @@
   }
 
   function cartPayload() {
-    return state.cart.map((item) => ({
-      slug: item.slug,
-      unit: item.unit,
-      quantity: item.quantity
-    }));
+    return state.cart.map((item) => {
+      const product = products.get(item.slug);
+      const option = product ? priceOptions(product).find((entry) => entry.unit === item.unit) : null;
+      return {
+        slug: item.slug,
+        unit: item.unit,
+        quantity: item.quantity,
+        packageLength: optionPackageDimension(option, product, "packageLength", 20),
+        packageWidth: optionPackageDimension(option, product, "packageWidth", 15),
+        packageHeight: optionPackageDimension(option, product, "packageHeight", 10)
+      };
+    });
   }
 
   function addToCart(slug, unit) {
@@ -893,6 +906,8 @@
     }
   });
 
+  grid.innerHTML = '<div class="content-loader" role="status" aria-live="polite">Загружаем продукцию...</div>';
+
   Promise.all([
     fetch("/chat-api/store/settings", { credentials: "same-origin" }).then((response) => response.ok ? response.json() : {}),
     fetch("/chat-api/products", { credentials: "same-origin" }).then((response) => {
@@ -909,6 +924,7 @@
       renderProducts(data.products || []);
     })
     .catch(() => {
+      grid.innerHTML = initialProductMarkup;
       renderCart();
       grid.querySelectorAll(".product-card__image").forEach((element) => {
         const match = String(element.getAttribute("style") || "").match(/url\(['"]?([^'")]+)['"]?\)/);

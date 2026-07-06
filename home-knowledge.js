@@ -147,6 +147,9 @@
   Promise.all(Object.keys(panelConfigs).map((key) => loadPanel(key)))
     .catch((error) => {
       showcase.querySelectorAll("[data-home-loading]").forEach((node) => {
+        node.classList.add("content-loader--error");
+        node.removeAttribute("role");
+        node.removeAttribute("aria-live");
         node.textContent = error.message || "Не удалось загрузить материалы.";
       });
     })

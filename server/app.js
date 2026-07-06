@@ -41,10 +41,10 @@ const ADMIN_USERNAMES = new Set([
   "shamanchik007"
 ]);
 const GRAIN_MYCELIUM_PRICE_OPTIONS = [
-  { unit: "100 г", price: 800 },
-  { unit: "300 г", price: 2200 },
-  { unit: "500 г", price: 3500 },
-  { unit: "1000 г", price: 6000 }
+  { unit: "100 г", price: 800, packageLength: 20, packageWidth: 15, packageHeight: 10 },
+  { unit: "300 г", price: 2200, packageLength: 60, packageWidth: 45, packageHeight: 30 },
+  { unit: "500 г", price: 3500, packageLength: 100, packageWidth: 75, packageHeight: 50 },
+  { unit: "1000 г", price: 6000, packageLength: 200, packageWidth: 150, packageHeight: 100 }
 ];
 const DEFAULT_CATEGORY_BANNERS = [
   { title: "Сома", category: "Сома", imageUrl: "/images/banner1.jpg", altText: "Баннер категории Сома", sortOrder: 20 },
@@ -342,6 +342,9 @@ db.exec(`
     discount_percent INTEGER NOT NULL DEFAULT 0,
     unit TEXT NOT NULL DEFAULT '100 г',
     price_options_json TEXT NOT NULL DEFAULT '[]',
+    package_length INTEGER NOT NULL DEFAULT 20,
+    package_width INTEGER NOT NULL DEFAULT 15,
+    package_height INTEGER NOT NULL DEFAULT 10,
     is_active INTEGER NOT NULL DEFAULT 1,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
@@ -423,6 +426,15 @@ function ensureProductSchema() {
   }
   if (!columns.includes("discount_percent")) {
     db.exec("ALTER TABLE products ADD COLUMN discount_percent INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!columns.includes("package_length")) {
+    db.exec(`ALTER TABLE products ADD COLUMN package_length INTEGER NOT NULL DEFAULT ${DEFAULT_PACKAGE.length}`);
+  }
+  if (!columns.includes("package_width")) {
+    db.exec(`ALTER TABLE products ADD COLUMN package_width INTEGER NOT NULL DEFAULT ${DEFAULT_PACKAGE.width}`);
+  }
+  if (!columns.includes("package_height")) {
+    db.exec(`ALTER TABLE products ADD COLUMN package_height INTEGER NOT NULL DEFAULT ${DEFAULT_PACKAGE.height}`);
   }
 }
 
@@ -672,6 +684,22 @@ function parseBenefits(value) {
     .filter(Boolean);
 }
 
+function parsePackageDimensions(value) {
+  const parts = String(value || "")
+    .trim()
+    .split(/[.\sxх×*,;/]+/iu)
+    .map((part) => cleanInteger(part, 0))
+    .filter((part) => part > 0);
+  if (parts.length < 3) {
+    return null;
+  }
+  return {
+    packageLength: cleanPackageDimension(parts[0], DEFAULT_PACKAGE.length),
+    packageWidth: cleanPackageDimension(parts[1], DEFAULT_PACKAGE.width),
+    packageHeight: cleanPackageDimension(parts[2], DEFAULT_PACKAGE.height)
+  };
+}
+
 function parsePriceOptions(value) {
   let items = [];
   if (Array.isArray(value)) {
@@ -686,10 +714,11 @@ function parsePriceOptions(value) {
         items = Array.isArray(parsed) ? parsed : [];
       } catch {
         items = trimmed.split(/\r?\n/).map((line) => {
-          const [unitPart, pricePart] = line.split(/\s*[-–—:]\s*/);
+          const [unitPart, pricePart, ...dimensionParts] = line.split(/\s*[-–—:]\s*/);
           return {
             unit: unitPart,
-            price: pricePart
+            price: pricePart,
+            dimensions: dimensionParts.join(".")
           };
         });
       }
@@ -697,10 +726,22 @@ function parsePriceOptions(value) {
   }
 
   return items
-    .map((item) => ({
-      unit: cleanText(item.unit, 80),
-      price: Math.max(0, cleanInteger(item.price, 0))
-    }))
+    .map((item) => {
+      const dimensions = parsePackageDimensions(item.dimensions ?? item.packageDimensions ?? item.packageSize);
+      const packageLength = cleanInteger(item.packageLength ?? item.package_length, 0);
+      const packageWidth = cleanInteger(item.packageWidth ?? item.package_width, 0);
+      const packageHeight = cleanInteger(item.packageHeight ?? item.package_height, 0);
+      const explicitDimensions = packageLength && packageWidth && packageHeight ? {
+        packageLength: cleanPackageDimension(packageLength, DEFAULT_PACKAGE.length),
+        packageWidth: cleanPackageDimension(packageWidth, DEFAULT_PACKAGE.width),
+        packageHeight: cleanPackageDimension(packageHeight, DEFAULT_PACKAGE.height)
+      } : dimensions;
+      return {
+        unit: cleanText(item.unit, 80),
+        price: Math.max(0, cleanInteger(item.price, 0)),
+        ...(explicitDimensions || {})
+      };
+    })
     .filter((item) => item.unit && item.price > 0);
 }
 
@@ -752,6 +793,9 @@ function normalizeProduct(row, { admin = false } = {}) {
     unit: row.unit,
     priceOptions: admin ? originalPriceOptions : discountedPriceOptions,
     originalPriceOptions,
+    packageLength: cleanPackageDimension(row.package_length, DEFAULT_PACKAGE.length),
+    packageWidth: cleanPackageDimension(row.package_width, DEFAULT_PACKAGE.width),
+    packageHeight: cleanPackageDimension(row.package_height, DEFAULT_PACKAGE.height),
     hasDiscount: discountPercent > 0,
     isActive: Boolean(row.is_active),
     sortOrder: row.sort_order,
@@ -916,6 +960,9 @@ function productPayloadFromBody(body, existing = {}) {
     discountPercent: clampProductDiscountPercent(body.discountPercent ?? body.discount_percent ?? existing.discountPercent),
     unit: cleanText(body.unit, 80) || baseOption?.unit || "100 г",
     priceOptionsJson: JSON.stringify(priceOptions),
+    packageLength: cleanPackageDimension(body.packageLength ?? body.package_length, existing.packageLength || DEFAULT_PACKAGE.length),
+    packageWidth: cleanPackageDimension(body.packageWidth ?? body.package_width, existing.packageWidth || DEFAULT_PACKAGE.width),
+    packageHeight: cleanPackageDimension(body.packageHeight ?? body.package_height, existing.packageHeight || DEFAULT_PACKAGE.height),
     isActive: body.isActive === false || body.isActive === "false" || body.is_active === 0 || body.is_active === "0" ? 0 : 1,
     sortOrder: cleanInteger(body.sortOrder ?? body.sort_order, existing.sortOrder || 0)
   };
@@ -1370,6 +1417,16 @@ function normalizeOrderItems(rawItems) {
     const quantity = Math.min(99, Math.max(1, cleanInteger(raw.quantity, 1)));
     const unit = option.unit || product.unit || "\u0448\u0442";
     const price = Math.max(0, cleanInteger(option.price, product.price));
+    const hasOptionPackage = option.packageLength && option.packageWidth && option.packageHeight;
+    const packageLength = hasOptionPackage
+      ? cleanPackageDimension(option.packageLength, DEFAULT_PACKAGE.length)
+      : cleanPackageDimension(product.packageLength, DEFAULT_PACKAGE.length);
+    const packageWidth = hasOptionPackage
+      ? cleanPackageDimension(option.packageWidth, DEFAULT_PACKAGE.width)
+      : cleanPackageDimension(product.packageWidth, DEFAULT_PACKAGE.width);
+    const packageHeight = hasOptionPackage
+      ? cleanPackageDimension(option.packageHeight, DEFAULT_PACKAGE.height)
+      : cleanPackageDimension(product.packageHeight, DEFAULT_PACKAGE.height);
     normalized.push({
       slug: product.slug,
       title: product.title,
@@ -1377,7 +1434,10 @@ function normalizeOrderItems(rawItems) {
       quantity,
       price,
       amount: price * quantity,
-      weight: weightFromUnit(unit) * quantity
+      weight: weightFromUnit(unit) * quantity,
+      packageLength: packageLength * quantity,
+      packageWidth: packageWidth * quantity,
+      packageHeight: packageHeight * quantity
     });
   }
   return normalized;
@@ -1404,6 +1464,15 @@ function cdekPackageSettings() {
 
 function cdekConfigured() {
   return Boolean(CDEK_ACCOUNT && CDEK_SECURE_PASSWORD);
+}
+
+function sendCdekClientError(res, error) {
+  if (!error.cdekResponse) {
+    return false;
+  }
+  const status = error.cdekResponse.status >= 500 ? 502 : 400;
+  res.status(status).json({ error: `CDEK: ${error.message || "Не удалось рассчитать доставку."}` });
+  return true;
 }
 
 let cdekTokenCache = { token: "", expiresAt: 0 };
@@ -1437,32 +1506,52 @@ async function cdekToken() {
 }
 
 async function cdekFetch(endpoint, options = {}) {
+  const { includeMeta = false, ...fetchOptions } = options;
   const token = await cdekToken();
   const response = await fetch(`${CDEK_BASE_URL}${endpoint}`, {
-    ...options,
+    ...fetchOptions,
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers || {})
+      ...(fetchOptions.body ? { "Content-Type": "application/json" } : {}),
+      ...(fetchOptions.headers || {})
     }
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = data?.errors?.[0]?.message || data.message || "CDEK request failed.";
-    throw new Error(message);
+    const error = new Error(message);
+    error.cdekResponse = {
+      url: response.url,
+      status: response.status,
+      body: data
+    };
+    throw error;
+  }
+  if (includeMeta) {
+    return {
+      data,
+      status: response.status,
+      url: response.url
+    };
   }
   return data;
 }
 
 function orderPackageFromItems(items) {
+  const fallbackPackage = cdekPackageSettings();
+  const packageLength = items.reduce((sum, item) => sum + Math.max(0, cleanInteger(item.packageLength, 0)), 0);
+  const packageWidth = items.reduce((sum, item) => sum + Math.max(0, cleanInteger(item.packageWidth, 0)), 0);
+  const packageHeight = items.reduce((sum, item) => sum + Math.max(0, cleanInteger(item.packageHeight, 0)), 0);
   return {
     weight: Math.max(100, items.reduce((sum, item) => sum + item.weight, 0)),
-    ...cdekPackageSettings()
+    length: Math.max(1, packageLength || fallbackPackage.length),
+    width: Math.max(1, packageWidth || fallbackPackage.width),
+    height: Math.max(1, packageHeight || fallbackPackage.height)
   };
 }
 
-async function calculateCdekDelivery({ cityCode, deliveryPointCode, items }) {
+async function calculateCdekDelivery({ cityCode, deliveryPointCode, items, includeDebug = false }) {
   const fromLocationCode = cleanInteger(getSetting("cdek_from_location_code", ""), 0);
   const senderPointCode = cleanText(getSetting("cdek_sender_point_code", CDEK_SENDER_POINT_CODE), 80);
   const tariffCode = cleanInteger(getSetting("cdek_tariff_code", DEFAULT_CDEK_TARIFF_CODE), DEFAULT_CDEK_TARIFF_CODE);
@@ -1485,11 +1574,30 @@ async function calculateCdekDelivery({ cityCode, deliveryPointCode, items }) {
     payload.shipment_point = senderPointCode;
     payload.delivery_point = deliveryPointCodeClean;
   }
-  const result = await cdekFetch("/calculator/tariff", {
+  const endpoint = "/calculator/tariff";
+  const request = {
     method: "POST",
-    body: JSON.stringify(payload)
-  });
-  return {
+    url: `${CDEK_BASE_URL}${endpoint}`,
+    body: payload
+  };
+  let cdekResponse;
+  try {
+    cdekResponse = await cdekFetch(endpoint, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      includeMeta: includeDebug
+    });
+  } catch (error) {
+    if (includeDebug && error.cdekResponse) {
+      error.cdekDebug = {
+        request,
+        response: error.cdekResponse
+      };
+    }
+    throw error;
+  }
+  const result = includeDebug ? cdekResponse.data : cdekResponse;
+  const delivery = {
     provider: "cdek",
     tariffCode,
     shipmentPointCode: senderPointCode || null,
@@ -1502,6 +1610,17 @@ async function calculateCdekDelivery({ cityCode, deliveryPointCode, items }) {
     periodMax: result.period_max || null,
     raw: result
   };
+  if (includeDebug) {
+    delivery.debug = {
+      request,
+      response: {
+        url: cdekResponse.url,
+        status: cdekResponse.status,
+        body: result
+      }
+    };
+  }
+  return delivery;
 }
 
 function yookassaConfigured() {
@@ -2457,6 +2576,9 @@ app.get(["/api/delivery/cities", "/chat-api/delivery/cities"], async (req, res, 
     }));
     res.json({ cities });
   } catch (error) {
+    if (sendCdekClientError(res, error)) {
+      return;
+    }
     next(error);
   }
 });
@@ -2479,6 +2601,9 @@ app.get(["/api/delivery/points", "/chat-api/delivery/points"], async (req, res, 
     }));
     res.json({ points });
   } catch (error) {
+    if (sendCdekClientError(res, error)) {
+      return;
+    }
     next(error);
   }
 });
@@ -2503,6 +2628,9 @@ app.post(["/api/delivery/calculate", "/chat-api/delivery/calculate"], async (req
     });
     res.json({ delivery });
   } catch (error) {
+    if (sendCdekClientError(res, error)) {
+      return;
+    }
     next(error);
   }
 });
@@ -2522,10 +2650,14 @@ app.post(["/api/admin/delivery/calculate", "/chat-api/admin/delivery/calculate"]
     const delivery = await calculateCdekDelivery({
       cityCode,
       deliveryPointCode,
-      items: [{ weight }]
+      items: [{ weight }],
+      includeDebug: true
     });
-    res.json({ delivery, settings });
+    res.json({ delivery, settings, cdekDebug: delivery.debug });
   } catch (error) {
+    if (error.cdekDebug) {
+      return res.status(502).json({ error: error.message, cdekDebug: error.cdekDebug });
+    }
     next(error);
   }
 });
@@ -2649,6 +2781,9 @@ app.post(["/api/orders", "/chat-api/orders"], async (req, res, next) => {
 
     res.status(201).json({ order, paymentUrl: order.paymentUrl });
   } catch (error) {
+    if (sendCdekClientError(res, error)) {
+      return;
+    }
     next(error);
   }
 });
@@ -2886,10 +3021,11 @@ app.post(["/api/admin/products", "/chat-api/admin/products"], requireAdmin, (req
   const result = db.prepare(`
     INSERT INTO products(
       slug, title, subtitle, category, short_description, description, benefits_json,
-      dosage, composition, notice, image_url, price, discount_percent, unit, price_options_json, is_active, sort_order,
+      dosage, composition, notice, image_url, price, discount_percent, unit, price_options_json,
+      package_length, package_width, package_height, is_active, sort_order,
       created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     payload.slug,
     payload.title,
@@ -2906,6 +3042,9 @@ app.post(["/api/admin/products", "/chat-api/admin/products"], requireAdmin, (req
     payload.discountPercent,
     payload.unit,
     payload.priceOptionsJson,
+    payload.packageLength,
+    payload.packageWidth,
+    payload.packageHeight,
     payload.isActive,
     payload.sortOrder,
     stamp,
@@ -2945,6 +3084,9 @@ app.patch(["/api/admin/products/:productId", "/chat-api/admin/products/:productI
       discount_percent = ?,
       unit = ?,
       price_options_json = ?,
+      package_length = ?,
+      package_width = ?,
+      package_height = ?,
       is_active = ?,
       sort_order = ?,
       updated_at = ?
@@ -2965,6 +3107,9 @@ app.patch(["/api/admin/products/:productId", "/chat-api/admin/products/:productI
     payload.discountPercent,
     payload.unit,
     payload.priceOptionsJson,
+    payload.packageLength,
+    payload.packageWidth,
+    payload.packageHeight,
     payload.isActive,
     payload.sortOrder,
     nowIso(),

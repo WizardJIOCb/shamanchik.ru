@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/admin/products.css">
+  <link rel="stylesheet" href="/admin/products.css?v=cdek-options-20260706">
 </head>
 <body>
   <div class="admin-shell">
@@ -108,6 +108,7 @@
         </div>
         <div class="delivery-calculator__cities" id="delivery-test-cities" aria-live="polite"></div>
         <div class="delivery-calculator__result" id="delivery-test-result" aria-live="polite">Введите город или адрес, затем выберите ПВЗ.</div>
+        <div class="delivery-calculator__debug" id="delivery-test-debug" hidden></div>
       </section>
     </section>
 
@@ -175,7 +176,7 @@
 
           <label>
             <span>Фасовки и цены</span>
-            <textarea name="priceOptions" rows="4" placeholder="100 г - 800&#10;300 г - 2200&#10;500 г - 3500&#10;1000 г - 6000"></textarea>
+            <textarea name="priceOptions" rows="4" placeholder="100 г - 800 - 20.15.10&#10;300 г - 2200 - 60.45.30&#10;500 г - 3500 - 100.75.50&#10;1000 г - 6000 - 200.150.100"></textarea>
           </label>
 
           <label>
@@ -236,6 +237,6 @@
 
   <noscript><div><img src="https://mc.yandex.ru/watch/108620522" style="position:absolute; left:-9999px;" alt=""></div></noscript>
   <script src="/yandex-metrika.js" defer></script>
-  <script src="/admin/products.js?v=cdek-calculator-20260630" defer></script>
+  <script src="/admin/products.js?v=cdek-simple-dims-20260706" defer></script>
 </body>
 </html>

@@ -2,6 +2,7 @@
 Thumbs.db
 node_modules/
 .tools/
+.tmp_scraperr_patch/
 android-twa/android.keystore
 android-twa/.gradle/
 android-twa/app/build/
