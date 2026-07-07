@@ -70,6 +70,14 @@ const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || generatedVapidKeys.pr
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || `mailto:admin@${new URL(SITE_URL).hostname}`;
 const DEFAULT_CDEK_TARIFF_CODE = 136;
 const DEFAULT_PACKAGE = { length: 20, width: 15, height: 10 };
+const CDEK_BOXES = [
+  { length: 30, width: 10, height: 10, maxWeight: 2000 },
+  { length: 30, width: 20, height: 10, maxWeight: 4500 },
+  { length: 30, width: 30, height: 15, maxWeight: 9000 },
+  { length: 40, width: 30, height: 20, maxWeight: 14000 },
+  { length: 50, width: 40, height: 25, maxWeight: 20000 },
+  { length: 60, width: 40, height: 30, maxWeight: 30000 }
+];
 const CURATED_CATALOG_PRODUCTS = [
   {
     slug: "pasta-shamana",
@@ -1538,17 +1546,28 @@ async function cdekFetch(endpoint, options = {}) {
   return data;
 }
 
-function orderPackageFromItems(items) {
-  const fallbackPackage = cdekPackageSettings();
-  const packageLength = items.reduce((sum, item) => sum + Math.max(0, cleanInteger(item.packageLength, 0)), 0);
-  const packageWidth = items.reduce((sum, item) => sum + Math.max(0, cleanInteger(item.packageWidth, 0)), 0);
-  const packageHeight = items.reduce((sum, item) => sum + Math.max(0, cleanInteger(item.packageHeight, 0)), 0);
+function packageForWeight(weight) {
+  const weightGrams = Math.max(100, cleanInteger(weight, 100));
+  const box = CDEK_BOXES.find((item) => weightGrams <= item.maxWeight) || CDEK_BOXES[CDEK_BOXES.length - 1];
   return {
-    weight: Math.max(100, items.reduce((sum, item) => sum + item.weight, 0)),
-    length: Math.max(1, packageLength || fallbackPackage.length),
-    width: Math.max(1, packageWidth || fallbackPackage.width),
-    height: Math.max(1, packageHeight || fallbackPackage.height)
+    weight: weightGrams,
+    length: box.length,
+    width: box.width,
+    height: box.height
   };
+}
+
+function orderPackagesFromItems(items) {
+  const totalWeight = Math.max(100, items.reduce((sum, item) => sum + Math.max(0, cleanInteger(item.weight, 0)), 0));
+  const maxBoxWeight = CDEK_BOXES[CDEK_BOXES.length - 1].maxWeight;
+  const packages = [];
+  let remainingWeight = totalWeight;
+  while (remainingWeight > maxBoxWeight) {
+    packages.push(packageForWeight(maxBoxWeight));
+    remainingWeight -= maxBoxWeight;
+  }
+  packages.push(packageForWeight(remainingWeight));
+  return packages;
 }
 
 async function calculateCdekDelivery({ cityCode, deliveryPointCode, items, includeDebug = false }) {
@@ -1568,7 +1587,7 @@ async function calculateCdekDelivery({ cityCode, deliveryPointCode, items, inclu
     tariff_code: tariffCode,
     from_location: { code: fromLocationCode },
     to_location: { code: toLocationCode },
-    packages: [orderPackageFromItems(items)]
+    packages: orderPackagesFromItems(items)
   };
   if (senderPointCode && deliveryPointCodeClean) {
     payload.shipment_point = senderPointCode;
@@ -1605,6 +1624,7 @@ async function calculateCdekDelivery({ cityCode, deliveryPointCode, items, inclu
     cityCode: toLocationCode,
     deliveryPointCode: deliveryPointCodeClean,
     package: payload.packages[0],
+    packages: payload.packages,
     price: Math.ceil(cleanNumber(result.total_sum ?? result.delivery_sum, 0)),
     periodMin: result.period_min || null,
     periodMax: result.period_max || null,
