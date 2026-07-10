@@ -1258,8 +1258,8 @@ function promoCodePayloadFromBody(body, existing = null) {
   return payload;
 }
 
-function promoDiscountAmount(promo, subtotal) {
-  const base = Math.max(0, cleanInteger(subtotal, 0));
+function promoDiscountAmount(promo, productSubtotal) {
+  const base = Math.max(0, cleanInteger(productSubtotal, 0));
   if (!promo || base <= 0) return 0;
   if (promo.discountKind === "fixed") {
     return Math.min(base, Math.max(0, cleanInteger(promo.discountValue, 0)));
@@ -1268,7 +1268,7 @@ function promoDiscountAmount(promo, subtotal) {
   return Math.min(base, Math.round(base * percent / 100));
 }
 
-function validatePromoCodeForSubtotal(promo, subtotal) {
+function validatePromoCodeForProductSubtotal(promo, productSubtotal) {
   if (!promo) {
     return { ok: false, error: "Промокод не найден." };
   }
@@ -1292,7 +1292,7 @@ function validatePromoCodeForSubtotal(promo, subtotal) {
   if (promo.maxUses > 0 && usageCount >= promo.maxUses) {
     return { ok: false, error: "Лимит использований промокода исчерпан." };
   }
-  const discountAmount = promoDiscountAmount(promo, subtotal);
+  const discountAmount = promoDiscountAmount(promo, productSubtotal);
   if (discountAmount <= 0) {
     return { ok: false, error: "Промокод не даёт скидку для этой корзины." };
   }
@@ -1312,12 +1312,12 @@ function validatePromoCodeForSubtotal(promo, subtotal) {
   };
 }
 
-function resolvePromoCode(code, subtotal) {
+function resolvePromoCode(code, productSubtotal) {
   const normalizedCode = normalizePromoCode(code);
   if (!normalizedCode) {
     return { ok: true, promo: null };
   }
-  return validatePromoCodeForSubtotal(getPromoCodeByCode(normalizedCode), subtotal);
+  return validatePromoCodeForProductSubtotal(getPromoCodeByCode(normalizedCode), productSubtotal);
 }
 
 function publicOrder(row) {
@@ -1451,10 +1451,14 @@ function normalizeOrderItems(rawItems) {
   return normalized;
 }
 
-function orderTotals(items, deliveryPrice = 0, discountAmount = 0) {
-  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+function orderProductSubtotal(items) {
+  return items.reduce((sum, item) => sum + item.amount, 0);
+}
+
+function orderTotals(items, deliveryPrice = 0, productDiscountAmount = 0) {
+  const subtotal = orderProductSubtotal(items);
   const delivery = Math.max(0, cleanInteger(deliveryPrice, 0));
-  const discount = Math.min(subtotal, Math.max(0, cleanInteger(discountAmount, 0)));
+  const discount = Math.min(subtotal, Math.max(0, cleanInteger(productDiscountAmount, 0)));
   return { subtotal, discountAmount: discount, deliveryPrice: delivery, total: subtotal - discount + delivery };
 }
 
@@ -1667,14 +1671,14 @@ function discountedOrderItems(order) {
     amount: Math.max(0, cleanInteger(item.amount, cleanInteger(item.price, 0) * cleanInteger(item.quantity, 1)))
   })) : [];
   const discountAmount = Math.min(
-    items.reduce((sum, item) => sum + item.amount, 0),
+    orderProductSubtotal(items),
     Math.max(0, cleanInteger(order.promoDiscountAmount || order.promo?.discountAmount, 0))
   );
   if (!items.length || discountAmount <= 0) {
     return items;
   }
 
-  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+  const subtotal = orderProductSubtotal(items);
   const allocations = items.map((item) => {
     const raw = discountAmount * item.amount / subtotal;
     return {
@@ -2687,7 +2691,7 @@ app.post(["/api/promocodes/preview", "/chat-api/promocodes/preview"], (req, res)
   if (!items.length) {
     return res.status(400).json({ error: "Корзина пуста." });
   }
-  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+  const subtotal = orderProductSubtotal(items);
   const result = resolvePromoCode(req.body.code, subtotal);
   if (!result.ok) {
     return res.status(400).json({ error: result.error });
@@ -2733,7 +2737,7 @@ app.post(["/api/orders", "/chat-api/orders"], async (req, res, next) => {
       delivery.pointAddress = cleanText(req.body.delivery?.pointAddress, 300);
     }
 
-    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+    const subtotal = orderProductSubtotal(items);
     const promoResult = resolvePromoCode(req.body.promoCode, subtotal);
     if (!promoResult.ok) {
       return res.status(400).json({ error: promoResult.error });
